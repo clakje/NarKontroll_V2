@@ -18,6 +18,9 @@
   var KODER = window.KODER || {};
   var SKJERMER = window.SKJERMER || {};
   var MODULER = KURS.moduler;
+  // R2-3: del A–C. Del D (valgfri) teller ikke for at kurset er fullført
+  var OBLIGATORISKE = MODULER.filter(function (m) { return !m.valgfri; });
+  var SISTE_OBLIGATORISKE = MODULER.indexOf(OBLIGATORISKE[OBLIGATORISKE.length - 1]);
   var SCORM = window.SCORM;
 
   var APPKNAPPER = {
@@ -26,12 +29,15 @@
     overfore:     { merke: "OVERFØRE til eget underlager",    farge: "var(--app-overfore)", navn: "OVERFØRE til",    under: "eget underlager",        ikon: "skuff" },
     tilbakefore:  { merke: "TILBAKEFØRE fra eget underlager", farge: "#C9C9CE",             navn: "TILBAKEFØRE fra", under: "eget underlager",        ikon: "skuff", deaktivert: true },
     apotek:       { merke: "APOTEKET",                        farge: "var(--app-apotek)",   navn: "APOTEKET",        under: "Mottak fra / Retur til", ikon: "kors", hel: true, underForst: true },
-    kassere:      { merke: "KASSERE små rester",              farge: "var(--app-rod)",      navn: "KASSERE",         under: "små rester lokalt",      ikon: "soppel" },
+    kassere:      { merke: "KASSERE",                         farge: "var(--app-rod)",      navn: "KASSERE",         under: "rester / endose",        ikon: "soppel" },
     lan:          { merke: "LÅN til/fra annen enhet",         farge: "var(--app-rod)",      navn: "LÅN",             under: "til/fra annen enhet",    ikon: "retur" },
     kontroll:     { merke: "KONTROLL av beholdning",          farge: "var(--app-kontroll)", navn: "KONTROLL",        under: "av beholdning",          ikon: "merke" },
-    oversikt:     { merke: "OVERSIKT",                        farge: "var(--app-oversikt)", navn: "OVERSIKT",        under: "Dobbeltkontroll<br>Avvik<br>Siste" }
+    // R2-4: knappen heter «Signeringsoppgaver og nylig historikk» i appen 2.1. Nøkkelen er fortsatt oversikt.
+    // Myk bindestrek i navn, så det lange ordet kan deles på den smale appknappen i QR-arket
+    oversikt:     { merke: "Signeringsoppgaver og nylig historikk", farge: "var(--app-oversikt)", navn: "Signerings­oppgaver og nylig historikk", under: "hendelser venter på signatur", hel: true }
   };
-  var MENYREKKEFOLGE = ["uttak", "tilbakelegge", "overfore", "tilbakefore", "apotek", "kassere", "lan", "kontroll", "oversikt"];
+  // Rekkefølgen i appens startmeny 2.1, ovenfra og ned
+  var MENYREKKEFOLGE = ["oversikt", "uttak", "tilbakelegge", "overfore", "tilbakefore", "apotek", "kassere", "lan", "kontroll"];
 
   // Hvor NFC-leseren sitter på telefonen
   var LESERE = [
@@ -63,8 +69,7 @@
   var devLukket = true;       // panelet starter sammenfoldet, så det ikke dekker steget
   var signerte = 0;          // ID-kort-tæpp på gjeldende steg (dev)
   var skannet = {};          // rader i et registrer-steg som er skannet (dev)
-  var valgtSvar = null;      // valgt alternativ før «Sjekk svar»
-  var venter = false;        // skann-animasjon pågår
+  var venter = false;       // skann-animasjon pågår
 
   function nyTilstand() {
     return { m: 0, s: 0, ferdig: {}, sett: {}, svar: {} };
@@ -100,7 +105,8 @@
   function modul(i) { return MODULER[i == null ? tilstand.m : i]; }
   function steg(m, s) { return modul(m).steg[s == null ? tilstand.s : s]; }
   function svarNokkel(m, s) { return modul(m).id + ":" + s; }
-  function erSisteModul(m) { return m === MODULER.length - 1; }
+  // R2-3: «Fullfør kurset» står på siste obligatoriske modul (M13), ikke på siste valgfrie
+  function erSisteModul(m) { return m === SISTE_OBLIGATORISKE; }
   function erSisteSteg(m, s) { return s === modul(m).steg.length - 1; }
 
   function modulIndeks(id) {
@@ -122,19 +128,23 @@
     (KURS.grupper || []).forEach(function (g) {
       var idx = g.moduler.map(modulIndeks).filter(function (i) { return i >= 0; });
       idx.forEach(function (i) { brukt[i] = true; });
-      if (idx.length) liste.push({ tittel: g.tittel, tekst: g.tekst, moduler: idx });
+      if (idx.length) liste.push({ del: g.del, tittel: g.tittel, tekst: g.tekst, valgfri: !!g.valgfri, moduler: idx });
     });
     var rest = MODULER.map(function (m, i) { return i; }).filter(function (i) { return !brukt[i]; });
     if (rest.length) liste.push({ tittel: liste.length ? "Andre moduler" : "Moduler", moduler: rest });
     return liste;
   }
 
-  // Påbegynt modul der deltakeren sist var, ellers første ufullførte i anbefalt rekkefølge
+  // Påbegynt modul der deltakeren sist var, ellers første ufullførte i anbefalt rekkefølge.
+  // R2-3: en valgfri modul anbefales aldri før alle obligatoriske er fullført.
   function anbefaltNeste() {
-    var id = modul().id;
-    if (!tilstand.ferdig[id] && tilstand.sett[id] != null) return tilstand.m;
+    var id = modul().id, alle = kursFullfort();
+    if (!tilstand.ferdig[id] && tilstand.sett[id] != null && (alle || !modul().valgfri)) return tilstand.m;
     var rekke = [].concat.apply([], grupper().map(function (g) { return g.moduler; }));
-    for (var i = 0; i < rekke.length; i++) if (!tilstand.ferdig[MODULER[rekke[i]].id]) return rekke[i];
+    for (var i = 0; i < rekke.length; i++) {
+      var m = MODULER[rekke[i]];
+      if (!tilstand.ferdig[m.id] && (alle || !m.valgfri)) return rekke[i];
+    }
     return -1;
   }
 
@@ -146,6 +156,14 @@
     return n;
   }
 
+  // R2-11: tilstand.svar[nøkkel] = [første valg, 1/0 riktig, siste valg]. Poengsummen bygger på første
+  // valg. Siste valg lagres bare når det er et annet enn det første, så suspend_data holdes kort.
+  function sisteSvar(m, s) {
+    var svar = tilstand.svar[svarNokkel(m, s)];
+    if (!svar) return null;
+    return svar.length > 2 ? svar[2] : svar[0];
+  }
+
   function poeng() {
     var totalt = antallSporsmal(), riktige = 0, besvart = 0;
     Object.keys(tilstand.svar).forEach(function (k) {
@@ -155,9 +173,12 @@
     return { totalt: totalt, riktige: riktige, besvart: besvart, prosent: totalt ? Math.round((riktige / totalt) * 100) : 0 };
   }
 
+  // R2-3: bare obligatoriske moduler (del A–C) teller. Del D er valgfri.
   function antallFerdig() {
-    return MODULER.filter(function (m) { return tilstand.ferdig[m.id]; }).length;
+    return OBLIGATORISKE.filter(function (m) { return tilstand.ferdig[m.id]; }).length;
   }
+
+  function kursFullfort() { return antallFerdig() === OBLIGATORISKE.length; }
 
   /* ───────────── QR ───────────── */
 
@@ -202,7 +223,7 @@
       SCORM.set("cmi.core.score.raw", String(p.prosent));
     }
 
-    if (antallFerdig() === MODULER.length && SCORM.get("cmi.core.lesson_status") !== "completed") {
+    if (kursFullfort() && SCORM.get("cmi.core.lesson_status") !== "completed") {
       SCORM.set("cmi.core.lesson_status", "completed");
     }
     SCORM.commit();
@@ -243,7 +264,6 @@
     tilstand.sett[id] = Math.max(tilstand.sett[id] == null ? -1 : tilstand.sett[id], s);
     signerte = 0;
     skannet = {};
-    valgtSvar = null;
     venter = false;
     try { history.replaceState(null, "", "#" + id + "/" + (s + 1)); } catch (e) { /* file:// i enkelte nettlesere */ }
     lagre();
@@ -252,11 +272,8 @@
 
   function neste() {
     if (venter) return;
-    var st = steg();
-    if (st.type === "sporsmal" && !tilstand.svar[svarNokkel(tilstand.m, tilstand.s)]) {
-      sjekkSvar();
-      return;
-    }
+    // R2-11: «Fortsett» krever et svar, men ikke riktig svar
+    if (steg().type === "sporsmal" && sisteSvar(tilstand.m, tilstand.s) == null) return;
     if (!erSisteSteg(tilstand.m, tilstand.s)) {
       gaTil(tilstand.m, tilstand.s + 1);
       return;
@@ -277,22 +294,29 @@
     visning = "meny";
     nyligFerdig = opts.ferdig || null;
     signerte = 0;
-    valgtSvar = null;
     venter = false;
     try { history.replaceState(null, "", "#meny"); } catch (e) { /* file:// i enkelte nettlesere */ }
     lagre();
     tegn(opts.fokus !== false);
   }
 
-  function sjekkSvar() {
-    if (valgtSvar == null) return;
-    var st = steg();
-    var riktig = st.alternativer[valgtSvar] === st.fasit;
-    tilstand.svar[svarNokkel(tilstand.m, tilstand.s)] = [valgtSvar, riktig ? 1 : 0];
+  // R2-11: umiddelbar svarrespons. Svaret låses ikke, og deltakeren kan prøve et annet.
+  // Siden tegnes ikke på nytt, så fokus blir på radioknappen og piltastene bytter fortsatt svar.
+  function velgSvar(i) {
+    var st = steg(), nokkel = svarNokkel(tilstand.m, tilstand.s);
+    var svar = tilstand.svar[nokkel] || [i, st.alternativer[i] === st.fasit ? 1 : 0];
+    if (i !== svar[0]) svar[2] = i; else svar.length = 2;
+    tilstand.svar[nokkel] = svar;
     lagre();
-    tegn(false);
-    var tb = $("#tilbakemelding");
-    if (tb) tb.focus();
+
+    Array.prototype.forEach.call(document.querySelectorAll(".svar-liste .svar"), function (el, j) {
+      var res = svarResultat(st, j, i);
+      if (res) el.setAttribute("data-resultat", res); else el.removeAttribute("data-resultat");
+      $(".svar-status", el).innerHTML = svarStatus(res);
+    });
+    $("#tilbakemelding").innerHTML = tilbakemeldingHtml(st, i);
+    var knapp = $("#knapp-neste");
+    if (knapp) knapp.disabled = false;
   }
 
   function kunngjor(tekst) {
@@ -324,7 +348,7 @@
     var mod = modul(), st = steg();
     document.title = ren(mod.eyebrow) + ": " + ren(mod.tittel) + " – NarKontroll opplæring";
 
-    $("#app").innerHTML = veilederHtml(mod, st) + (st.iKortet ? "" : soneHtml(mod, st));
+    $("#app").innerHTML = veilederHtml(mod, st) + soneHtml(mod, st);
     if (dev) tegnDev();
 
     if (flyttFokus) {
@@ -350,7 +374,9 @@
 
     // Case: merkelappen viser allerede tittelen, så h1 skjules visuelt og raden forstørres.
     // CASE-etiketten står da som overskrift i historieboksen i stedet for i toppraden.
-    var caseIHistorie = knapp && mod.kortTekst;
+    // R2-9: historieboksen vises bare på steg 1. Senere står CASE-etiketten i toppraden igjen.
+    var visHistorie = tilstand.s === 0 && mod.kortTekst;
+    var caseIHistorie = knapp && visHistorie;
     h += '<div class="modul-topp' + (knapp ? " modul-topp--case" : "") + '"><div class="eyebrow-rad">';
     if (!caseIHistorie) h += '<span class="eyebrow">' + esc(mod.eyebrow) + "</span>";
     if (knapp) h += '<span class="appmerke" style="--f:' + knapp.farge + '">' + esc(knapp.merke) + "</span>";
@@ -359,19 +385,18 @@
 
     if (caseIHistorie) {
       h += '<div class="historie historie--case"><p class="historie-tittel">' + esc(mod.eyebrow) + "</p><p>" + fmt(mod.kortTekst) + "</p></div>";
-    } else if (mod.kortTekst) {
+    } else if (visHistorie) {
       h += '<div class="historie">' + ikon(mod.knapp ? "i-bok" : "i-info") + "<p>" + fmt(mod.kortTekst) + "</p></div>";
     }
 
     // Stegtelleren står øverst inne i stegkortet
     var teller = '<div class="stegteller"><span>Steg <strong>' + (tilstand.s + 1) + "</strong> av " + n + '</span><div class="stegprikker" aria-hidden="true">' + prikker + "</div></div>";
 
-    if (st.iKortet) {
-      // Innholdet fra skannesonen står i selve stegkortet, og sonen til høyre vises ikke
-      var panel = velgPanel(st);
-      h += '<article class="stegkort inn" id="steg" tabindex="-1" data-type="' + st.type + '" data-ikortet aria-label="' + esc(panel.etikett) + '">' + teller;
-      h += '<div class="sone-eyebrow"><p class="stegtype">' + ikon(panel.ikon) + esc(panel.etikett) + "</p>" + (panel.hoyre || "") + "</div>";
-      h += panel.html;
+    if (st.utenKort) {
+      // R2-8: case-boksen og radene til høyre sier hva som skal gjøres. Kortet har bare stegtelleren,
+      // og tittelen står der for skjermleseren
+      h += '<article class="stegkort stegkort--lav inn" id="steg" tabindex="-1" data-type="' + st.type + '" aria-labelledby="steg-tittel">' + teller;
+      h += '<h2 class="sr" id="steg-tittel">' + fmt(st.tittel || st.tekst) + "</h2>";
     } else if (st.type === "sporsmal") {
       h += '<article class="stegkort inn" id="steg" tabindex="-1" data-type="' + st.type + '" aria-labelledby="steg-tittel">' + teller;
       h += '<p class="stegtype">' + ikon(t.ikon) + esc(t.etikett) + "</p>";
@@ -404,61 +429,65 @@
   function navradHtml(st) {
     var forste = tilstand.s === 0;
     var sist = erSisteSteg(tilstand.m, tilstand.s);
-    var besvart = tilstand.svar[svarNokkel(tilstand.m, tilstand.s)];
-    var label, deaktivert = false, ikonId = "i-neste";
+    var label, ikonId = "i-neste";
+    // R2-11: kontrollspørsmål har «Fortsett», som virker så snart et svar er valgt
+    var deaktivert = st.type === "sporsmal" && sisteSvar(tilstand.m, tilstand.s) == null;
 
-    if (st.type === "sporsmal" && !besvart) {
-      label = "Sjekk svar";
-      deaktivert = valgtSvar == null;
-      ikonId = "i-sjekk";
-    } else if (sist && erSisteModul(tilstand.m)) {
-      if (antallFerdig() === MODULER.length) { label = "Til hovedmenyen"; ikonId = "i-hjem"; }
+    if (sist && erSisteModul(tilstand.m)) {
+      if (kursFullfort()) { label = "Til hovedmenyen"; ikonId = "i-hjem"; }
       else { label = "Fullfør kurset"; ikonId = "i-sjekk"; }
     } else if (sist) {
       label = modul().knapp ? "Fullfør casen" : "Fullfør modulen";
       ikonId = "i-sjekk";
     } else {
-      label = { skann: "Skannet, neste", signer: "Signert, neste", registrer: "Ferdig, neste", instruks: "Ferdig, neste", mengde: "Ferdig, neste", valg: "Ferdig, neste" }[st.type] || "Neste";
+      label = { skann: "Skannet, neste", signer: "Signert, neste", registrer: "Ferdig, neste", instruks: "Ferdig, neste", mengde: "Ferdig, neste", valg: "Ferdig, neste", sporsmal: "Fortsett" }[st.type] || "Neste";
     }
 
     return '<div class="navrad">' +
       (forste
         ? '<button class="knapp knapp-sekundar" type="button" data-handling="meny">' + ikon("i-hjem") + "<span>Hovedmeny</span></button>"
         : '<button class="knapp knapp-sekundar" type="button" data-handling="forrige">' + ikon("i-forrige") + "<span>Tilbake</span></button>") +
-      '<div class="navrad-hoyre"><span class="tastatur-hint" aria-hidden="true"><kbd>←</kbd> <kbd>→</kbd> for å bla</span>' +
+      '<div class="navrad-hoyre">' +
       '<button class="knapp knapp-primar knapp-stor" type="button" id="knapp-neste" data-handling="neste"' + (deaktivert ? " disabled" : "") + "><span>" + esc(label) + "</span>" + ikon(ikonId) + "</button></div>" +
       "</div>";
   }
 
+  // R2-11: bare det valgte alternativet merkes. Fasiten vises ikke etter et feil svar.
   function sporsmalHtml(st) {
-    var besvart = tilstand.svar[svarNokkel(tilstand.m, tilstand.s)];
-    var h = '<fieldset class="svar-liste"' + (besvart ? " data-laast" : "") + '><legend class="sr">Velg ett svar</legend>';
+    var valgt = sisteSvar(tilstand.m, tilstand.s);
+    var h = '<fieldset class="svar-liste"><legend class="sr">Velg ett svar</legend>';
     st.alternativer.forEach(function (alt, i) {
-      var res = "", status = "";
-      if (besvart) {
-        if (alt === st.fasit) { res = "riktig"; status = ikon("i-sjekk") + (besvart[0] === i ? "Ditt svar, riktig" : "Riktig svar"); }
-        else if (besvart[0] === i) { res = "feil"; status = ikon("i-kryss") + "Ditt svar"; }
-      }
-      var valgt = besvart ? besvart[0] === i : valgtSvar === i;
+      var res = svarResultat(st, i, valgt);
       h += '<label class="svar"' + (res ? ' data-resultat="' + res + '"' : "") + ">" +
-        '<input type="radio" name="svar" value="' + i + '"' + (valgt ? " checked" : "") + (besvart ? " disabled" : "") + ">" +
+        '<input type="radio" name="svar" value="' + i + '"' + (valgt === i ? " checked" : "") + ">" +
         '<span class="svar-markor" aria-hidden="true"></span><span>' + fmt(alt) + "</span>" +
-        (status ? '<span class="svar-status">' + status + "</span>" : "") + "</label>";
+        '<span class="svar-status">' + svarStatus(res) + "</span></label>";
     });
     h += "</fieldset>";
-    if (besvart) {
-      var ok = besvart[1] === 1;
-      h += '<div class="tilbakemelding" id="tilbakemelding" tabindex="-1" role="status" data-resultat="' + (ok ? "riktig" : "feil") + '">' +
-        ikon(ok ? "i-sjekk" : "i-info") + "<p><strong>" + (ok ? "Riktig." : "Ikke helt. Riktig svar er " + esc(st.fasit) + ".") + "</strong> " + fmt(st.forklaring || "") + "</p></div>";
-    }
-    return h;
+    // Statusfeltet står der fra start, så skjermleseren leser opp når tilbakemeldingen kommer
+    return h + '<div class="tilbakemelding-rot" id="tilbakemelding" role="status">' + tilbakemeldingHtml(st, valgt) + "</div>";
+  }
+
+  function svarResultat(st, i, valgt) {
+    return valgt !== i ? "" : st.alternativer[i] === st.fasit ? "riktig" : "feil";
+  }
+
+  function svarStatus(res) {
+    return res === "riktig" ? ikon("i-sjekk") + "Riktig" : res === "feil" ? ikon("i-kryss") + "Ikke riktig" : "";
+  }
+
+  // Forklaringene i kurs.js røper fasiten, så de vises bare ved riktig svar
+  function tilbakemeldingHtml(st, valgt) {
+    if (valgt == null) return "";
+    var ok = st.alternativer[valgt] === st.fasit;
+    return '<div class="tilbakemelding" data-resultat="' + (ok ? "riktig" : "feil") + '">' + ikon(ok ? "i-sjekk" : "i-info") +
+      "<p><strong>" + (ok ? "Riktig." : "Ikke helt.") + "</strong> " + (ok ? fmt(st.forklaring || "") : "Prøv et annet svar.") + "</p></div>";
   }
 
   /* ───────────── Skannesonen ───────────── */
 
   function soneHtml(mod, st) {
     var panel = velgPanel(st);
-    if (panel.ingen) return "";
     var h = '<aside class="sone" aria-label="Skannesone"' + (panel.stille ? " data-stille" : "") + (panel.rekke ? " data-rekke" : "") + ">";
     h += '<div class="sone-eyebrow"><span class="eyebrow">' + ikon(panel.ikon) + esc(panel.etikett) + "</span>" + (panel.hoyre || "") + "</div>";
     h += '<div class="sone-innhold inn">' + panel.html + "</div>";
@@ -474,8 +503,7 @@
         hoyre: harKode ? '<span class="sone-hoyre">Skann fra ca. 20 cm</span>' : "" };
     }
     if (p && p.type === "fakta") return { etikett: "Til hjelp", ikon: "i-info", html: faktaHtml(p) };
-    if (p && p.type === "resultat") return { etikett: "Resultat", ikon: "i-sjekk", html: resultatHtml() };
-    if (p && p.type === "idkort") return { etikett: "Kontroller ID-kortet", ikon: "i-kort", html: idkortHtml(p.idkort, { kunKort: true }) };
+    if (p && p.type === "idkort") return { etikett: "Kontroller ID-kortet", ikon: "i-kort", html: idkortHtml(p.idkort, { kunKort: true, tekst: p.tekst }) };
 
     if (st.type === "skann") return qrPanel(st);
     if (st.type === "signer") return { etikett: "Tæpp ID-kortet", ikon: "i-nfc", html: idkortHtml(st.idkort, { antall: st.antall || 1, forklar: st.forklar }) };
@@ -483,8 +511,8 @@
     if (st.type === "valg") return { etikett: "Velg i appen", ikon: "i-bryter", html: valgHtml(st.valg) };
     if (st.meny) return { etikett: "Startmenyen i appen", ikon: "i-trykk", html: startmenyHtml(st.meny, st.type === "instruks") };
     if (st.skjerm) return { etikett: "Slik ser det ut i appen", ikon: "i-oye", html: plassholderHtml(st.skjerm) };
-    // Kontrollspørsmål uten eget panel får ingen skannesone, bare stegkortet
-    if (st.type === "sporsmal") return { etikett: "Kontrollspørsmål", ikon: "i-sporsmal", ingen: true };
+    // R2-8: kontrollspørsmål uten eget panel får en rolig flate, så kolonnene står stille
+    if (st.type === "sporsmal") return { etikett: "Kontrollspørsmål", ikon: "i-sporsmal", stille: true, html: stilleHtml("i-sporsmal", "Velg ett svar.") };
     if (st.type === "obs") return { etikett: "Obs", ikon: "i-obs", stille: true, html: stilleHtml("i-obs", "Les dette før du går videre.") };
     return { etikett: "Les og gå videre", ikon: "i-info", stille: true, html: stilleHtml("i-bok", "Ingen skanning i dette steget.") };
   }
@@ -537,9 +565,12 @@
     return h;
   }
 
+  // R2-13: tegningen av ID-kortet vises når kortet skal kontrolleres (kunKort) og første gang deltakeren
+  // signerer (forklar). Senere står bare teksten, lenken og indikatorene for signaturene.
   function idkortHtml(kortId, opts) {
     var k = KODER[kortId] || { navn: "Deg", rolle: "" };
     var antall = opts.antall || 1;
+    var visKort = opts.kunKort || opts.forklar;
     var kanKlikke = dev && !opts.kunKort;
     var tag = kanKlikke ? "button" : "div";
     var attr = kanKlikke
@@ -547,14 +578,16 @@
       : ' role="img" aria-label="ID-kort: ' + esc(k.navn) + '"';
 
     var h = '<div class="idkort-scene">';
-    h += "<" + tag + ' class="idkort"' + attr + ">" +
-      '<span class="idkort-topp"><span>ID-kort</span>' + ikon("i-nfc") + "</span>" +
-      '<span class="idkort-foto">' + ikon("i-person") + "</span>" +
-      '<span class="idkort-navn">' + esc(k.navn) + "</span>" +
-      '<span class="idkort-rolle">' + esc(k.rolle) + "</span></" + tag + ">";
+    if (visKort) {
+      h += "<" + tag + ' class="idkort"' + attr + ">" +
+        '<span class="idkort-topp"><span>ID-kort</span>' + ikon("i-nfc") + "</span>" +
+        '<span class="idkort-foto">' + ikon("i-person") + "</span>" +
+        '<span class="idkort-navn">' + esc(k.navn) + "</span>" +
+        '<span class="idkort-rolle">' + esc(k.rolle) + "</span></" + tag + ">";
+    }
 
     if (opts.kunKort) {
-      h += '<p class="sone-tekst">Sjekk at navn og bilde stemmer med personen foran deg.</p>';
+      h += '<p class="sone-tekst">' + fmt(opts.tekst || "Sjekk at navn og bilde stemmer med personen foran deg.") + "</p>";
     } else {
       // Hvor leseren sitter, forklares én gang (steget har forklar: true). Senere ligger det bak en lenke.
       var modellHtml = '<ul class="taepp-modeller">' +
@@ -567,15 +600,20 @@
       h += opts.forklar
         ? '<div class="taepp"><p class="taepp-tekst">' + linje + ". Hvor leseren sitter, varierer:</p>" + modellHtml + "</div>"
         : '<div class="taepp"><p class="taepp-tekst">' + linje + '.</p><details class="taepp-mer"><summary>Hvor sitter leseren?</summary>' + modellHtml + "</details></div>";
-      if (antall > 1) {
+      // Uten kortet er indikatorene det eneste å klikke på i utviklermodus, så de vises også ved én signatur
+      if (antall > 1 || !visKort) {
         h += '<div class="signaturer" aria-label="Signaturer">';
         for (var i = 0; i < antall; i++) {
           var ok = i < signerte;
-          h += '<span class="signatur"' + (ok ? " data-signert" : "") + ">" + ikon(ok ? "i-sjekk" : "i-nfc") + "Bruker " + (i + 1) + (ok ? ", signert" : "") + "</span>";
+          var navn = antall > 1 ? "Bruker " + (i + 1) : "Signatur";
+          var innhold = ikon(ok ? "i-sjekk" : "i-nfc") + navn + (ok ? ", signert" : "");
+          h += dev && !visKort && i === signerte
+            ? '<button class="signatur" type="button" data-handling="taepp" aria-label="Simuler at ID-kortet tæppes for ' + navn.toLowerCase() + '">' + innhold + "</button>"
+            : '<span class="signatur"' + (ok ? " data-signert" : "") + ">" + innhold + "</span>";
         }
         h += "</div>";
       }
-      if (dev) h += '<span class="dev-hint">' + ikon("i-verktoy") + "Klikk kortet for å tæppe</span>";
+      if (dev) h += '<span class="dev-hint">' + ikon("i-verktoy") + (visKort ? "Klikk kortet for å tæppe" : "Klikk " + (antall > 1 ? "Bruker " + (Math.min(signerte, antall - 1) + 1) : "Signatur") + " for å tæppe") + "</span>";
     }
     return h + "</div>";
   }
@@ -650,30 +688,11 @@
 
     var beskr = "Skjematisk startmeny for TEST Medisinrom 1.";
     if (fremhev.length) beskr += " Fremhevet: " + fremhev.map(function (id) { return APPKNAPPER[id].merke; }).join(" og ") + ".";
-    if (badge) beskr += " OVERSIKT viser et rødt varsel med tallet " + badge + ".";
-    else if (meny.badge === 0) beskr += " OVERSIKT har ikke noe varsel.";
+    if (badge) beskr += " " + APPKNAPPER.oversikt.navn + " viser et rødt varsel med tallet " + badge + ".";
+    else if (meny.badge === 0) beskr += " " + APPKNAPPER.oversikt.navn + " har ikke noe varsel.";
 
     return '<div class="telefon" role="img" aria-label="' + esc(beskr) + '"><div class="telefon-skjerm">' + h + "</div></div>" +
       '<p class="bildetekst"><span class="merkelapp">Skjematisk</span>Bygget etter skjermbildet av appen</p>';
-  }
-
-  function resultatHtml() {
-    var p = poeng(), ferdige = antallFerdig(), alle = ferdige === MODULER.length;
-    // Siste modul regnes som ferdig først når «Fullfør kurset» er trykket
-    var gjenstar = MODULER.filter(function (m, i) { return !tilstand.ferdig[m.id] && i !== MODULER.length - 1; });
-    var h = '<div class="resultat">' +
-      '<svg class="resultat-merke" aria-hidden="true"><use href="#nk-mark"/></svg>' +
-      '<div class="resultat-tall">' +
-      "<div><b>" + ferdige + "/" + MODULER.length + "</b><span>moduler fullført</span></div>" +
-      "<div><b>" + p.riktige + "/" + p.totalt + "</b><span>riktige på første forsøk</span></div></div>";
-    if (alle) {
-      h += '<p class="sone-tekst">Kurset er registrert som fullført' + (SCORM.modus === "lms" ? " i LMS." : " (lokal testmodus).") + "</p>";
-    } else if (gjenstar.length) {
-      h += '<p class="sone-tekst">Disse modulene er ikke fullført: ' + gjenstar.map(function (m) { return esc(m.eyebrow + ": " + m.tittel); }).join(", ") + ".</p>";
-    } else {
-      h += '<p class="sone-tekst">Trykk «Fullfør kurset» for å registrere kurset som fullført.</p>';
-    }
-    return h + "</div>";
   }
 
   /* ───────────── Toppfeltet: hvor er jeg? ───────────── */
@@ -697,12 +716,18 @@
     h += '<div class="meny-hode"><h1 class="meny-tittel" id="meny-tittel" tabindex="-1">' + fmt(hm.tittel || KURS.tittel) + "</h1>" +
       (avsnitt.length ? '<div class="meny-ingress">' + avsnitt.map(function (p) { return "<p>" + fmt(p) + "</p>"; }).join("") + "</div>" : "") + "</div>";
 
+    // R2-3: «Obligatoriske moduler» over del A–C og «Valgfrie moduler» over del D. Gruppene er h3 under dem
+    var deler = hm.deler || {}, forrigeDel = null;
     grupper().forEach(function (g, gi) {
       var ferdige = g.moduler.filter(function (i) { return tilstand.ferdig[MODULER[i].id]; }).length;
+      var del = g.valgfri ? "valgfri" : "obligatorisk";
+      if (del !== forrigeDel && deler[del]) h += '<h2 class="meny-del-tittel">' + esc(deler[del]) + "</h2>";
+      forrigeDel = del;
       h += '<section class="meny-gruppe" aria-labelledby="gruppe-' + gi + '">' +
-        '<div class="gruppe-hode"><h2 class="gruppe-tittel" id="gruppe-' + gi + '"><span class="gruppe-nr" aria-hidden="true">' + (gi + 1) + "</span>" + esc(g.tittel) + "</h2>" +
+        '<div class="gruppe-hode"><h3 class="gruppe-tittel" id="gruppe-' + gi + '"><span class="gruppe-nr" aria-hidden="true">' + esc(g.del || gi + 1) + "</span>" +
+        (g.del ? '<span class="sr">Del ' + esc(g.del) + ": </span>" : "") + esc(g.tittel) + "</h3>" +
         (g.tekst ? '<p class="gruppe-ingress">' + esc(g.tekst) + "</p>" : "") +
-        '<p class="gruppe-teller"' + (ferdige === g.moduler.length ? " data-ferdig" : "") + ">" + ferdige + " av " + g.moduler.length + " fullført</p></div>" +
+        '<p class="gruppe-teller"' + (ferdige === g.moduler.length ? " data-ferdig" : "") + ">" + ferdige + " av " + g.moduler.length + '<span class="gruppe-teller-ord"> fullført</span></p></div>' +
         '<ol class="kortgrid">' + g.moduler.map(modulkortHtml).join("") + "</ol></section>";
     });
 
@@ -711,12 +736,13 @@
 
   // Smal linje nederst: gratulasjon eller status, fremdriften, hvor den lagres, og én knapp videre
   function fremdriftHtml() {
-    var ferdige = antallFerdig(), n = MODULER.length, alle = ferdige === n;
+    var ferdige = antallFerdig(), n = OBLIGATORISKE.length, alle = ferdige === n;
     var neste = anbefaltNeste();
     var tittel, meta = "<span><strong>" + ferdige + "</strong> av " + n + " moduler fullført", knapp = "";
 
     if (nyligFerdig && modulIndeks(nyligFerdig) >= 0) {
-      tittel = alle ? "Gratulerer, kurset er fullført!" : "Bra! Du har fullført " + modulNavn(MODULER[modulIndeks(nyligFerdig)]) + ".";
+      var nm = MODULER[modulIndeks(nyligFerdig)];
+      tittel = alle && !nm.valgfri ? "Gratulerer, kurset er fullført!" : "Bra! Du har fullført " + modulNavn(nm) + ".";
     } else if (alle) {
       tittel = "Kurset er fullført";
     } else if (ferdige === 0 && neste === 0 && tilstand.sett[MODULER[0].id] == null) {
@@ -725,10 +751,8 @@
       tittel = "Din fremdrift";
     }
 
-    if (alle) {
-      var p = poeng();
-      meta += ". " + p.riktige + " av " + p.totalt + " kontrollspørsmål riktig på første forsøk";
-    } else if (neste >= 0) {
+    // R2-40: ingen poengsum i kurset. LMS-et får den fortsatt (lagre)
+    if (!alle && neste >= 0) {
       var m = MODULER[neste], st = modulStatus(neste);
       var verb = st.kode === "pabegynt" ? "Fortsett" : ferdige === 0 && neste === 0 ? "Start kurset" : "Neste";
       knapp = '<button class="knapp knapp-primar" type="button" data-gaa="' + neste + '"><span>' + esc(verb === "Start kurset" ? verb : verb + ": " + modulNavn(m)) + "</span>" + ikon("i-neste") + "</button>";
@@ -738,7 +762,7 @@
       (SCORM.modus === "lms" ? "Fremdriften lagres i LMS." : "Lokal testmodus: fremdriften lagres bare i denne nettleseren.") + "</span>";
 
     var spor = "";
-    MODULER.forEach(function (m) { spor += "<span" + (tilstand.ferdig[m.id] ? " data-ferdig" : "") + "></span>"; });
+    OBLIGATORISKE.forEach(function (m) { spor += "<span" + (tilstand.ferdig[m.id] ? " data-ferdig" : "") + "></span>"; });
 
     return '<div class="meny-fremdrift"' + (alle ? " data-alle" : nyligFerdig ? " data-nylig" : "") + ">" +
       '<div class="fremdrift-tekst"><h2 id="meny-fremdrift-tittel" tabindex="-1">' + (nyligFerdig || alle ? ikon("i-sjekk") : "") + esc(tittel) + "</h2>" +
@@ -764,7 +788,7 @@
       ' aria-labelledby="' + id + "-e " + id + "-t " + id + '-s">' +
       '<span class="modulkort-topp"><span class="eyebrow" id="' + id + '-e">' + esc(m.eyebrow) + "</span>" +
       (m.utkast ? '<span class="merkelapp">Utkast</span>' : "") + status + "</span>" +
-      '<span class="modulkort-tittel" id="' + id + '-t">' + fmt(m.tittel) + "</span>" +
+      '<span class="modulkort-tittel" id="' + id + '-t">' + fmt(m.kortTittel || m.tittel) + "</span>" +
       '<span class="sr" id="' + id + '-s">. ' + esc(st.tekst) + (anbefalt ? ", anbefalt neste" : "") + ". " + esc(st.handling) + "</span>" +
       "</button></li>";
   }
@@ -836,10 +860,11 @@
         var p = st.panel && st.panel.type === "fakta" ? st.panel : null;
         deler.push({ nr: ++nr, etikett: (STEGTYPER[st.type] || STEGTYPER.info).etikett, type: st.type, bredde: p ? 2 : 1,
           bilde: signer ? kortTegning(st.antall || 1) : "", innhold:
-          (st.tittel ? "<h3>" + fmt(st.tittel) + "</h3>" : "") + '<p class="rute-tekst">' + fmt(st.tekst) + "</p>" + arkPunkter(st.punkter) +
+          (st.tittel ? "<h3>" + fmt(st.tittel) + "</h3>" : "") + (st.tekst ? '<p class="rute-tekst">' + fmt(st.tekst) + "</p>" : "") + arkPunkter(st.punkter) +
           (signer && st.forklar ? '<p class="rute-merknad">Leseren sitter: ' + LESERE.map(function (l) { return l[1] + " " + l[2].toLowerCase(); }).join(". ") + ".</p>" : "") +
           (p ? '<dl class="rute-fakta">' + p.rader.map(function (r) { return "<div><dt>" + fmt(r[0]) + "</dt><dd>" + fmt(r[1]) + "</dd></div>"; }).join("") + "</dl>" : "") +
-          (st.tips ? '<p class="ark-tips">' + fmt(st.tips) + "</p>" : "") });
+          (st.tips ? '<p class="ark-tips">' + fmt(st.tips) + "</p>" : "") +
+          (st.panel && st.panel.type === "idkort" && st.panel.tekst ? '<p class="ark-tips">' + fmt(st.panel.tekst) + "</p>" : "") });
       }
     });
 
@@ -869,9 +894,10 @@
       '<header class="ark-hode"><div><p class="eyebrow">NarKontroll opplæring · Case-ark' + (m.utkast ? ' <span class="merkelapp">Utkast, ikke faglig godkjent</span>' : "") + "</p>" +
       "<h1>" + esc(m.eyebrow + ": " + ren(m.tittel)) + "</h1></div>" +
       '<svg style="width:14mm;height:14mm" aria-hidden="true"><use href="#nk-mark"/></svg></header>' +
-      '<div class="ark-situasjon">' + (knapp ? appknappHtml(m.knapp) : "") +
-      '<div><p class="ark-etikett">Situasjon</p><p>' + fmt(m.kortTekst) + "</p></div></div>" +
-      '<p class="ark-slik">Les situasjonen høyt. Én gjør stegene i appen og skanner kodene rett fra arket, de andre følger med. Bytt på hvem som skanner.' +
+      // R2-7: M0 har ingen situasjon (kortTekst)
+      (m.kortTekst ? '<div class="ark-situasjon">' + (knapp ? appknappHtml(m.knapp) : "") +
+        '<div><p class="ark-etikett">Situasjon</p><p>' + fmt(m.kortTekst) + "</p></div></div>" : "") +
+      '<p class="ark-slik">' + (m.kortTekst ? "Les situasjonen høyt. " : "") + 'Én gjør stegene i appen og skanner kodene rett fra arket, de andre følger med. Bytt på hvem som skanner.' +
       "<span>Versjon " + esc(KURS.versjon) + ". Alle kodene er DUMMY-koder for Opplæringsmodus. Skriv ut i 100 % størrelse (ikke «tilpass til side») for riktig kodestørrelse.</span></p>" +
       serie + (fasit.length ? '<p class="ark-fasit"><b>Fasit</b> ' + fasit.join(" ") + "</p>" : "") + "</section>";
   }
@@ -893,7 +919,7 @@
     if (k) return '<div class="rute-qr">' + qrSvg(k.payload) + "</div>";
     if (/tæpp/i.test(r.tekst)) return kortTegning(1);
     var trykk = /Trykk på \*\*([^*]+)\*\*/.exec(r.tekst);
-    var knapp = trykk && MENYREKKEFOLGE.filter(function (id) { return APPKNAPPER[id].merke.split(" ")[0] === trykk[1]; })[0];
+    var knapp = trykk && MENYREKKEFOLGE.filter(function (id) { var m = APPKNAPPER[id].merke; return m === trykk[1] || m.split(" ")[0] === trykk[1]; })[0];
     if (knapp) return '<div class="rute-tlf">' + appknappHtml(knapp) + "</div>";
     var ikonId = /Tell/.test(r.tekst) ? "i-tall" : /Velg|Slå på/.test(r.tekst) ? "i-bryter" : /Se |oppsummering|fanen/.test(r.tekst) ? "i-oye" : "i-trykk";
     return '<div class="rute-tlf">' + ikon(ikonId) + "</div>";
@@ -901,7 +927,7 @@
 
   function appknappHtml(id) {
     var k = APPKNAPPER[id];
-    return '<span class="ark-appknapp" style="--f:' + k.farge + '"' + (id === "kontroll" ? " data-lys" : "") + "><b>" + k.navn + "</b><small>" + k.under.replace(/<br>/g, " · ") + "</small></span>";
+    return '<span class="ark-appknapp" style="--f:' + k.farge + '"' + (id === "kontroll" ? " data-lys" : "") + (k.navn.length > 20 ? " data-lang" : "") + "><b>" + k.navn + "</b><small>" + k.under.replace(/<br>/g, " · ") + "</small></span>";
   }
 
   function kortTegning(antall) {
@@ -936,13 +962,14 @@
         return '<option value="' + i + '"' + (i === tilstand.s ? " selected" : "") + ">" + (i + 1) + " · " + esc(s.type + ": " + ren(s.tittel || s.tekst).slice(0, 48)) + "</option>";
       }).join("") + "</select></label>" +
       '<div class="dev-rad"><button class="dev-knapp" type="button" data-dev="nullstill">Nullstill fremdrift</button>' +
+      '<button class="dev-knapp" type="button" data-dev="fullfor-obl">Merk A–C fullført</button>' +
       '<button class="dev-knapp" type="button" data-dev="fullfor">Merk alle fullført</button></div>' +
       '<div class="dev-rad"><button class="dev-knapp" type="button" data-dev="skjermer">Skjermbilder (' + Object.keys(SKJERMER).length + ")</button>" +
       '<button class="dev-knapp" type="button" data-dev="avklares">AVKLARES (' + avklares.length + ")</button>" +
       '<button class="dev-knapp" type="button" data-dev="koder">Koder (' + Object.keys(KODER).length + ")</button></div>" +
       '<p class="dev-info">SCORM <code>' + SCORM.modus + "</code> · status <code>" + esc(SCORM.get("cmi.core.lesson_status")) + "</code> · score <code>" + esc(SCORM.get("cmi.core.score.raw") || "–") +
       "</code> · suspend_data <code>" + suspend.length + "</code>/4096</p>" +
-      '<p class="dev-info">Klikk QR-koden = skannet. Klikk ID-kortet = tæppet. <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> slår av.</p>' +
+      '<p class="dev-info">Klikk QR-koden = skannet. Klikk ID-kortet eller Bruker 1/2 = tæppet. <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> slår av.</p>' +
       "</div></aside>";
     $("#dev-rot").innerHTML = h;
   }
@@ -959,7 +986,10 @@
       }
     }
     MODULER.forEach(function (m) {
-      m.steg.forEach(function (s, i) { sok(s, m.eyebrow + ", steg " + (i + 1)); });
+      // Del D har samme eyebrow («Valgfri») på alle kortene, så tittelen skiller dem
+      var navn = m.valgfri ? ren(m.tittel) : m.eyebrow;
+      sok(m.kortTekst, navn + ", kort");
+      m.steg.forEach(function (s, i) { sok(s, navn + ", steg " + (i + 1)); });
     });
     Object.keys(KODER).forEach(function (id) { sok(KODER[id], "koder.js: " + id); });
     return funn;
@@ -1034,7 +1064,7 @@
     if (signerte < antall) {
       tegn(false);
       kunngjor("Bruker " + signerte + " har signert. Tæpp igjen for bruker " + (signerte + 1) + ".");
-      var kort = $(".idkort");
+      var kort = $('.sone [data-handling="taepp"]');
       if (kort) kort.focus();
       return;
     }
@@ -1073,8 +1103,8 @@
         if (SCORM.modus === "lokal") SCORM.nullstillLokalt();
         SCORM.set("cmi.core.lesson_status", "incomplete");
         visMeny();
-      } else if (hva === "fullfor") {
-        MODULER.forEach(function (m) { tilstand.ferdig[m.id] = true; tilstand.sett[m.id] = m.steg.length - 1; });
+      } else if (hva === "fullfor" || hva === "fullfor-obl") {
+        (hva === "fullfor" ? MODULER : OBLIGATORISKE).forEach(function (m) { tilstand.ferdig[m.id] = true; tilstand.sett[m.id] = m.steg.length - 1; });
         lagre();
         tegn(false);
       } else visRegister(hva);
@@ -1092,9 +1122,7 @@
 
   document.addEventListener("change", function (e) {
     if (e.target.name === "svar") {
-      valgtSvar = +e.target.value;
-      var knapp = $("#knapp-neste");
-      if (knapp) knapp.disabled = false;
+      velgSvar(+e.target.value);
     } else if (e.target.id === "dev-modul") {
       gaTil(+e.target.value, 0, { fokus: false });
     } else if (e.target.id === "dev-steg") {

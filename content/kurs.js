@@ -4,6 +4,15 @@
  * ALT innhold er DUMMY. Tekst i [AVKLARES: …] vises som gul merkelapp i kurset.
  * **fet** i tekst blir fet skrift.
  *
+ * Felt på en modul: id, nr, eyebrow, tittel, kortTekst, steg, og valgfritt:
+ *   knapp      appknappen casen handler om (farge på kortet, se APPKNAPPER i app.js)
+ *   utkast     true: merkelappen «Utkast» vises
+ *   kortTittel kortere tittel som bare brukes på kortet i hovedmenyen. Uten den brukes `tittel`
+ *   valgfri    true: teller ikke med for at kurset er fullført (del D)
+ *
+ * Grupper (KURS.grupper): del («A»–«D»), tittel, tekst, moduler, og valgfri: true på del D.
+ * Kurset er fullført når alle moduler uten `valgfri` er fullført (R2-3).
+ *
  * Stegtyper: registrer, skann, signer, sporsmal, obs, info
  *   (og fortelling, instruks, mengde, appskjerm, valg, som ikke brukes nå)
  *
@@ -15,12 +24,16 @@
  *   tittel    kort overskrift. Uten tittel vises `tekst` som overskrift.
  *   punkter   liste under teksten
  *   tips      liten hjelpetekst
- *   forklar   (signer) vis hvor leseren sitter på ulike telefoner. Bare første gang deltakeren signerer.
+ *   utenKort  true: stegkortet viser bare stegtelleren, og `tittel` leses bare av skjermleseren. Brukes når
+ *             case-boksen og radene til høyre sier det kortet ville sagt (R2-8). Sett ikke tekst, punkter
+ *             eller tips på et slikt steg: kurset viser dem ikke, men QR-arket tar dem med
+ *   forklar   (signer) vis ID-kortet og hvor leseren sitter på ulike telefoner. Bare første gang deltakeren
+ *             signerer. Uten forklar viser skannesonen bare teksten, lenken «Hvor sitter leseren?» og
+ *             signaturene (R2-13)
  *   antall    (signer) 2 = dobbeltsignering
- *   iKortet   (registrer) vis radene i stegkortet, uten skannesone til høyre
  *   meny      { fremhev: [], badge: 1 }. Viser skjematisk startmeny. Bare i M0: ellers skal deltakeren
  *             se på appen, ikke på bilder av den
- *   panel     { type: "fakta", tittel, rader: [[etikett, verdi]] } | { type: "idkort", idkort } | { type: "resultat" }
+ *   panel     { type: "fakta", tittel, rader: [[etikett, verdi]] } | { type: "idkort", idkort, tekst? }
  */
 window.KURS = {
   tittel: "NarKontroll – opplæring",
@@ -28,20 +41,27 @@ window.KURS = {
 
   /* Hovedmenyen: første side deltakeren ser (rett etter introfilmen), og siden de kommer tilbake til
      etter hver modul. Ingressen er ett eller flere avsnitt under tittelen, i full bredde.
-     Hold den kort, så hele menyen fortsatt får plass uten å rulle (H-04). */
+     Hold den kort, så hele menyen fortsatt får plass uten å rulle (H-04).
+     deler: de små overskriftene over del A–C (obligatorisk) og del D (valgfri) (R2-3). */
   hovedmeny: {
     tittel: "Kurs i NarKontroll-appen",
+    // R2-3: fire korte linjer fra fagekspertene
     ingress: [
-      "NarKontroll er en elektronisk løsning for regnskap og kontroll med A- og B-preparater, utviklet av Sykehuset Østfold. Dette kurset guider deg gjennom alle funksjonene steg for steg med grundige forklaringer, slik at du trygt kan bli kjent med appen uten å bekymre deg for å gjøre feil.",
-      "Kurset er alltid tilgjengelig, slik at du kan komme tilbake og øve akkurat når det passer deg. Casene er delt inn slik at case 1 til 4 går gjennom de viktigste og mest brukte funksjonene, og det anbefales å øve på disse til du føler deg helt trygg. For deg som ønsker å lære resten av funksjonene, er case 5 til 9 tilgjengelig for ekstra øving."
-    ]
+      "NarKontroll® er en elektronisk løsning for regnskap og kontroll med A- og B-preparater.",
+      "Dette kurset guider deg gjennom appens funksjoner så du skal bli trygg på å bruke appen på riktig måte.",
+      "Del A, B og C omhandler grunnleggende funksjoner og er obligatorisk for alle app-brukere.",
+      "Del D er valgfri, men også anbefalt for alle."
+    ],
+    deler: { obligatorisk: "Obligatoriske moduler", valgfri: "Valgfrie moduler" }
   },
 
-  /* Gruppene i hovedmenyen, i anbefalt rekkefølge */
+  /* Gruppene i hovedmenyen, i anbefalt rekkefølge. Del A–C er obligatoriske, del D er valgfri (R2-3).
+     Del D står under overskriften «Valgfrie moduler», så gruppen har en egen tittel. */
   grupper: [
-    { tittel: "Kom i gang", tekst: "Gjør denne først. Her gjør du klar appen på mobilen.", moduler: ["m0-velkommen"] },
-    { tittel: "Caser", tekst: "Øv på situasjoner fra hverdagen. Casene bygger på hverandre, så ta dem gjerne i rekkefølge.", moduler: ["case-1", "case-2", "case-3", "case-4", "case-5", "case-6", "case-7", "case-8", "case-9"] },
-    { tittel: "Til slutt", tekst: "Gode råd og innlogging med din egen bruker.", moduler: ["m12-gode-rad", "m13-avslutning"] }
+    { del: "A", tittel: "Kom i gang", tekst: "Gjør denne først. Her gjør du klar appen på mobilen.", moduler: ["m0-velkommen"] },
+    { del: "B", tittel: "Caser", tekst: "Øv på situasjoner fra hverdagen. Casene bygger på hverandre, så ta dem gjerne i rekkefølge.", moduler: ["case-1", "case-2", "case-3", "case-4", "case-5", "case-6", "case-7", "case-8", "case-9", "tips"] },
+    { del: "C", tittel: "Til slutt", tekst: "Gode råd og innlogging med din egen bruker.", moduler: ["m12-gode-rad", "m13-avslutning"] },
+    { del: "D", tittel: "Fordypning", tekst: "Anbefalt for alle.", valgfri: true, moduler: ["d-akuttvogn", "d-rette-opp-feil", "d-glemmekort", "d-kjekt-a-vite", "d-forbedring"] }
   ],
 
   moduler: [
@@ -51,21 +71,32 @@ window.KURS = {
       id: "m0-velkommen",
       nr: "M0",
       eyebrow: "Forberedelser",
-      tittel: "Sjekk at appen er klar",
-      kortTekst: "Du gjør kurset på PC og bruker den ekte appen på mobilen. Du trenger mobilen med **NarKontroll** installert, ID-kortet ditt og ca. 20 minutter.",
+      tittel: "Klargjør appen for opplæringen",   // R2-7
+      kortTittel: "Start her!",   // R2-3
+      // R2-7: ingen kortTekst. Det deltakeren trenger, står på side 1
       steg: [
         {
-          // Innholdet fra den tidligere infoboksen «Før du starter» (manus: AAA Intro, tilbakemelding H-02 og H-03).
-          // iKortet: radene står i stegkortet i stedet for i skannesonen (tittelen brukes bare av skjermleseren)
+          // Innholdet fra den tidligere infoboksen «Før du starter» (manus: AAA Intro, tilbakemelding H-02 og H-03)
+          type: "info",
+          tittel: "Dette trenger du",
+          tekst: "Du gjør kurset på PC og bruker den ekte appen på mobilen. I casene gjør du registreringene i appen, og kurset viser kodene du skal skanne.",
+          punkter: [
+            "Mobilen med **NarKontroll** installert",
+            "ID-kortet ditt",
+            "Ca. 20 minutter"   // må måles med en testperson, se README.md i prosjektroten
+          ]
+        },
+        {
+          // R2-7: radene står i skannesonen som i casene, så «Fullfør modulen» får plass uten å rulle
           type: "registrer",
-          iKortet: true,
           tittel: "Start appen i Opplæringsmodus",
+          tekst: "Gjør punktene i appen på mobilen.",
           rekke: [
-            { tekst: "Start **NarKontroll**-appen på mobilen." },
-            { tekst: "Trykk på ikonet øverst til høyre for å gå til **Opplæringsmodus**. {ikon:opplaeringsmodus}", merknad: "I Opplæringsmodus er det ingen innlogging med ekte brukernavn og passord. Registreringer som gjøres i Opplæringsmodus, slettes når modusen avsluttes." },
+            { tekst: "Start **NarKontroll**-appen på mobilen. **Ikke logg inn.**" },
+            { tekst: "Trykk på ikonet øverst til høyre for å gå til **Opplæringsmodus**. {ikon:opplaeringsmodus}", merknad: "I Opplæringsmodus tæpper du med ditt eget ID-kort både for signering (SIGN1) og dobbeltsignering (SIGN2). Ekte registreringer på ekte lagre må signeres av to ulike brukere. Knappene i startmenyen er grå fordi du ikke har valgt lager ennå." },
             { tekst: "Spør appen om å få bruke kameraet? Trykk **Tillat**.", merknad: "Dette skjer bare første gang du åpner appen." },
-            { kode: "LAGER-01", tekst: "Trykk på **Angi lager**, og skann lagerkoden." },
-            { tekst: "Nå er du i **Opplæringsmodus** og ser startmenyen. Øverst står lageret: **TEST Medisinrom 1**. I casene gjør du registreringene i appen, og kurset viser kodene du skal skanne.", merknad: "Ser du noe annet? Gjør punktene over på nytt." }
+            { kode: "LAGER-01", tekst: "Trykk på **Angi lager**, og skann lagerkoden.", merknad: "Når lageret er valgt, får knappene farger." },
+            { tekst: "Nå er du i **Opplæringsmodus**. Øverst står lageret: **TEST Medisinrom 1**. Se på startmenyen og hvordan knappene er satt opp.", merknad: "Opplæringsmodus er markert med en oransje stripe øverst i appen. QR-kodene i kurset er ikke ekte koder, og virker bare i Opplæringsmodus." }
           ]
         }
       ]
@@ -81,10 +112,10 @@ window.KURS = {
       kortTekst: "Line Danser har smerter og trenger smertestillende. Registrer UTTAK til pasient av 1 stk Oxynorm kaps 5 mg.",
       steg: [
         {
+          // R2-8: case-boksen sier hva som skal gjøres, og radene til høyre hvordan. Desimaltall øves i Case 7, enheter i Case 4
           type: "registrer",
+          utenKort: true,
           tittel: "Registrer uttaket i appen",
-          tekst: "Gjør registreringen på mobilen. Kurset viser stegene i den rekkefølgen appen spør, og kodene du skal skanne.",
-          tips: "Mengden kan være et desimaltall, for eksempel 1,5 stk. Den kan også ha en annen enhet enn stk, for eksempel ml for store miksturflasker eller hetteglass som deles av flere pasienter.",
           rekke: [
             { tekst: "Trykk på **UTTAK** til pasient." },
             { kode: "PROD-OXYNORM-5", mengde: 1, enhet: "stk", tekst: "Skann produktkoden. Skriv inn mengden, og trykk **Fortsett**." },
@@ -103,7 +134,8 @@ window.KURS = {
             rader: [
               ["A-preparat", "Alltid dobbeltkontroll, etter forskriftskrav. Det samme gjelder kassasjon"],
               ["B-preparat", "Ikke samme krav, men mange enheter har dobbeltsignering som lokalt krav"],
-              ["Kan utsettes", "For eksempel UTTAK til pasient uten avvik"],
+              // R2-9: varselet til andre brukere
+              ["Kan utsettes", "For eksempel UTTAK til pasient uten avvik. Utsetter du dobbeltsigneringen, får andre brukere som er innlogget på samme lager, et varsel."],
               ["Kan ikke utsettes", "Røde knapper og røde brytere, og registreringer med avvik. De lagres ikke før begge har signert"]
             ],
             merknad: "Lokale krav settes opp av systemforvalter på bestilling fra leder."
@@ -118,7 +150,7 @@ window.KURS = {
         },
         {
           type: "sporsmal",
-          tekst: "Se på startmenyen i appen. OVERSIKT har fått et rødt tall. Hva betyr det?",
+          tekst: "Se på startmenyen i appen. **Signeringsoppgaver og nylig historikk** har fått et rødt tall. Hva betyr det?",
           alternativer: ["Antall avvik på lageret", "Antall registreringer som venter på dobbeltkontroll", "Antall uttak i dag"],
           fasit: "Antall registreringer som venter på dobbeltkontroll",
           forklaring: "Utsatte dobbeltkontroller gir det røde oppgavevarselet. Det forsvinner når alle er signert."
@@ -154,8 +186,7 @@ window.KURS = {
           type: "signer",
           idkort: "IDKORT-01",
           antall: 2,
-          tittel: "Dobbeltsigner avviket med en gang",
-          tekst: "Tæpp ID-kortet to ganger: først som bruker 1, så som bruker 2.",
+          tittel: "Dobbeltsigner avviket med en gang",   // R2-13: uten linjen om bruker 1 og 2
           punkter: [
             "Avvik kan ikke utsettes. Registreringen lagres ikke før begge har signert.",
             "Bruker 2 trenger ikke logge inn, bare tæppe ID-kortet.",
@@ -180,13 +211,13 @@ window.KURS = {
       eyebrow: "Case 3",
       tittel: "TILBAKELEGGE fra pasient",
       knapp: "tilbakelegge",
-      kortTekst: "Fentanylplasteret til Finn Dottno er seponert, men neste dose var allerede tatt ut. Senere finner du en løs Sobril-tablett i medisintrallen.",
+      kortTekst: "Fentanylplasteret til Finn Dottno er seponert, men neste dose var allerede tatt ut. Den skal legges tilbake. Senere finner du en løs Sobril-tablett i medisintrallen.",   // R2-15
       steg: [
         {
+          // R2-15: case-boksen sier hva som skal gjøres, og radene til høyre hvordan
           type: "registrer",
+          utenKort: true,
           tittel: "Legg tilbake fentanylplasteret",
-          tekst: "Hos Finn Dottno er forordningen på fentanylplaster seponert. Neste dose var allerede klargjort og tatt ut av narkotikaregnskapet. Den skal legges tilbake.",
-          tips: "Følg appen på mobilen. Her i kurset trenger du bare kodene.",
           rekke: [
             { tekst: "Trykk på **TILBAKELEGGE** fra pasient." },
             { kode: "PROD-FENTANYL-50", mengde: 1, enhet: "stk", tekst: "Skann produktkoden, og skriv inn mengden." },
@@ -228,8 +259,8 @@ window.KURS = {
           tips: "Det finnes unntak. Sjekk om enheten er stk, mg eller ml.",
           rekke: [
             { tekst: "Trykk på **APOTEKET**, og velg **MOTTAK**." },
-            { tekst: "Slå på bryteren **Nytt mottak på samme lager**. Da kan du registrere flere legemidler etter hverandre." },
-            { kode: "PROD-SOBRIL-15", mengde: 50, enhet: "stk", tekst: "Skann, skriv inn mengden, og signer og lagre." },
+            // R2-17: bryteren slås på i oppsummeringen før signering, ikke før skanning
+            { kode: "PROD-SOBRIL-15", mengde: 50, enhet: "stk", tekst: "Skann, og skriv inn mengden. Før du signerer, slår du på bryteren **Nytt mottak på samme lager**, fordi du skal registrere flere mottak etter hverandre." },
             { kode: "PROD-COSYLAN", mengde: 180, enhet: "ml", tekst: "Skann, skriv inn mengden, og signer og lagre.", merknad: "Flytende, 180 ml per flaske. Altså ml." }
           ]
         },
@@ -239,14 +270,15 @@ window.KURS = {
           tekst: "Bryteren er fortsatt på, så du fortsetter rett med neste legemiddel. Husk regelen: 10 ml eller mer registreres som ml, under 10 ml som stk.",
           rekke: [
             { kode: "PROD-OXYCODONE-INJ", mengde: 20, enhet: "stk", tekst: "Skann, skriv inn mengden, og signer og lagre.", merknad: "Flytende, 2 ml per ampulle. Altså stk." },
-            { kode: "PROD-METADON-MIKST", mengde: 2, enhet: "[AVKLARES: enhet]", tekst: "Skann, skriv inn mengden, og signer og lagre.", merknad: "Metadon kan være et unntak fra hovedregelen. Sjekk enheten i appen." }
+            // R2-18: ml etter fagekspertene. Mengden venter på svar (README, spørsmål 4)
+            { kode: "PROD-METADON-MIKST", mengde: 2, enhet: "ml", tekst: "Skann, skriv inn mengden, og signer og lagre.", merknad: "Flytende, registreres i ml. [AVKLARES: mengde i ml, for eksempel 2 flasker × 100 ml]" }
           ]
         },
         {
           type: "registrer",
           tittel: "To tabletter har gått ut på dato",
           tekst: "Når du rydder etter mottaket, oppdager du at to Dolcontin depottab 100 mg fra lageret har gått ut på dato. De skal returneres til apoteket.",
-          tips: "RETUR til Sykehusapoteket er ofte A- eller B-preparater som skal destrueres fordi holdbarheten er utløpt. Returen leveres etter prosedyre.",
+          tips: "RETUR til apoteket er ofte A- eller B-preparater som skal destrueres fordi holdbarheten er utløpt. Returen leveres etter lokale prosedyrer.",
           rekke: [
             { tekst: "Trykk på **APOTEKET**, og velg **RETUR**." },
             { kode: "PROD-DOLCONTIN-100", mengde: 2, enhet: "stk", tekst: "Skann produktkoden, og skriv inn mengden." },
@@ -275,7 +307,7 @@ window.KURS = {
       id: "case-5",
       nr: "M7",
       eyebrow: "Case 5",
-      tittel: "OVERSIKT og ettersignering",
+      tittel: "Signeringsoppgaver og nylig historikk",
       knapp: "oversikt",
       utkast: true,
       kortTekst: "Finn igjen registreringene du har gjort, og fullfør dobbeltkontrollen fra Case 1.",
@@ -283,39 +315,43 @@ window.KURS = {
         {
           type: "registrer",
           tittel: "Nå er du bruker 2",
-          tekst: "Uttaket fra Case 1 venter på dobbeltkontroll. Tenk deg at det er en kollega som har registrert det, og at du er den som kontrollerer. Gå inn i OVERSIKT i appen, og gjør dobbeltkontrollen.",
+          // R2-22: knappen har fått nytt navn i appen 2.1. Rad 1 sier hvor deltakeren går inn, så teksten
+          // gjentar det ikke. Tipset står på steg 3, så «Ferdig, neste» får plass uten å rulle (økt 11)
+          tekst: "Uttaket fra Case 1 venter på dobbeltkontroll. Tenk deg at det er en kollega som har registrert det, og at du er den som kontrollerer.",
           punkter: [
             "På vakt dobbeltkontrollerer du alltid en annens registrering, aldri din egen.",
             "I Opplæringsmodus finnes bare dine egne registreringer. Derfor spiller du kollegaen her. [AVKLARES: kan Opplæringsmodus ha en ferdig registrering fra en annen bruker?]"
           ],
-          tips: "Mangler det dobbeltkontroll på forrige registrering en annen bruker har gjort på samme legemiddel, får du også mulighet til å dobbeltsignere den.",
           rekke: [
-            { tekst: "Trykk på **OVERSIKT**, den grønne knappen med det røde tallet." },
-            { tekst: "Den første fanen, **Dobbeltkontroll**, er en liste over registreringer som mangler dobbeltsignering. Finn uttaket fra Case 1." },
+            { tekst: "Trykk på **Signeringsoppgaver og nylig historikk**, den grønne knappen øverst med det røde tallet." },
+            { tekst: "Finn uttaket fra Case 1 i listen over registreringer som venter på dobbeltsignering. [AVKLARES: navnet på fanen]" },
             { tekst: "Kontroller registreringen, og tell beholdningen. Langtrykk så på registreringen." },
             { tekst: "Bekreft beholdningen ved å tæppe ID-kortet.", merknad: "I Opplæringsmodus bruker du ditt eget kort." },
-            { tekst: "Gå tilbake til startmenyen. Det røde tallet på OVERSIKT er borte når alle dobbeltkontroller er signert." }
+            { tekst: "Gå tilbake til startmenyen. Det røde tallet er borte når alle dobbeltsigneringer er gjort." }
           ]
         },
         {
+          // R2-23: to faner i stedet for tre. Fanenavnene og Avvik/Siste 14 dager venter på svar (README, spørsmål 5–6)
           type: "registrer",
           tittel: "Se gjennom fanene",
-          tekst: "OVERSIKT har tre faner. Du kan søke og filtrere i alle tre. På avvik gjelder dette:",
+          tekst: "Signeringsoppgaver og nylig historikk har to faner. Du kan søke og filtrere i begge. Her finner du signeringsoppgavene:",
           punkter: [
-            "Kommentarer om avvik er skjult.",
-            "Medisinromsansvarlig og/eller leder kan se kommentarene og har ansvar for å saksbehandle avvik."
+            "**Etterkommentarer**: registreringer som venter på en kommentar. [AVKLARES: stemmer det?]",
+            "**Dobbeltsignering**: registreringer som venter på signatur nummer to."
           ],
+          // R2-23: avvikspunktet er flyttet hit, så kontrollspørsmålet har grunnlag i teksten (README, spørsmål 7)
+          tips: "Kommentarer på avvik er skjult. Medisinromsansvarlig og/eller leder kan se dem og saksbehandler avvikene.",
           rekke: [
-            { tekst: "Åpne den midterste fanen, **Avvik**. Den viser avvik fra den siste måneden. Finn avviket fra Case 2." },
-            { tekst: "Åpne fanen til høyre, **Siste**. Den viser registreringene de siste 14 dagene." },
-            { kode: "PROD-SOBRIL-10", tekst: "Søk ved å skanne produktkoden mens du står i en av fanene.", merknad: "Du kan også skrive navnet på legemidlet i søkefeltet." },
+            { tekst: "Åpne den andre fanen. [AVKLARES: navnet på fanen, og hva den viser (nylig historikk? hvor langt tilbake?)]" },
+            { kode: "PROD-SOBRIL-10", tekst: "Søk ved å skanne produktkoden mens du står i en av fanene.", merknad: "Du kan også skrive navnet i søkefeltet, men skanning er tryggest." },
             { tekst: "Du kan skrive en etterkommentar på alle registreringer. Langtrykk på en registrering, og skriv kommentaren.", merknad: "[AVKLARES: navnet på menyvalget]" }
           ]
         },
         {
           type: "obs",
           tittel: "Ikke overlat det til neste skift",
-          tekst: "En utsatt dobbeltkontroll gir det røde varselet i startmenyen og et varsel på startskjermen til andre brukere som er innlogget på samme lager. Få en annen til å dobbeltkontrollere samtidig med registreringen når det er mulig, eller så fort som mulig."
+          tekst: "En utsatt dobbeltkontroll gir det røde tallet på **Signeringsoppgaver og nylig historikk** og et varsel på startskjermen til andre brukere som er innlogget på samme lager. Få en annen til å dobbeltkontrollere samtidig med registreringen når det er mulig, eller så fort som mulig.",
+          tips: "Mangler det dobbeltkontroll på forrige registrering en annen bruker har gjort på samme legemiddel, får du også mulighet til å dobbeltsignere den."
         },
         {
           type: "sporsmal",
@@ -332,20 +368,33 @@ window.KURS = {
       id: "case-6",
       nr: "M8",
       eyebrow: "Case 6",
-      tittel: "OVERFØRE til underlager",
+      // R2-3: fagekspertene skrev «Overføring til/fra eget lagre». Appen sier «eget underlager»
+      tittel: "OVERFØRING til/fra eget underlager",
       knapp: "overfore",
       utkast: true,
-      kortTekst: "Medisintrallen skal fylles opp. Overfør 5 stk Oxynorm kaps 5 mg fra TEST Medisinrom 1 til TEST Medisintralle.",
+      // R2-26: underlageret heter TEST Underlager i Opplæringsmodus
+      kortTekst: "Medisintrallen skal fylles opp. Overfør 5 stk Oxynorm kaps 5 mg fra TEST Medisinrom 1 til TEST Underlager. Etterpå fører du 2 stk tilbake til medisinrommet.",
       steg: [
         {
           type: "registrer",
           tittel: "Fyll opp medisintrallen",
-          tekst: "Medisintrallen er et underlager til medisinrommet. Den skal ha 5 stk Oxynorm kaps 5 mg. [AVKLARES: navnet på underlageret i Opplæringsmodus]",
-          tips: "Skal legemidler tilbake fra underlageret til medisinrommet, bruker du **TILBAKEFØRE**. Knappen er blek når registreringen ikke er tillatt.",
+          tekst: "Medisintrallen er et underlager til medisinrommet. I Opplæringsmodus heter underlageret **TEST Underlager**.",
           rekke: [
             { tekst: "Trykk på **OVERFØRE** til eget underlager." },
             { kode: "UNDERLAGER-01", tekst: "Skann koden til underlageret.", merknad: "[AVKLARES: skannes underlageret, eller velges det i en liste?]" },
             { kode: "PROD-OXYNORM-5", mengde: 5, enhet: "stk", tekst: "Skann produktkoden, og skriv inn mengden." },
+            { tekst: "Kontroller oppsummeringen, og tæpp ID-kortet for å signere." }
+          ]
+        },
+        {
+          // R2-3: tittelen sier «til/fra», så casen øver også TILBAKEFØRE
+          type: "registrer",
+          tittel: "Før legemidler tilbake",
+          tekst: "Det ble lagt for mange Oxynorm i medisintrallen. 2 stk skal tilbake til medisinrommet. Da bruker du **TILBAKEFØRE**. [AVKLARES: kan TILBAKEFØRE brukes i Opplæringsmodus? Knappen er blek på lysbilde 4]",
+          rekke: [
+            { tekst: "Trykk på **TILBAKEFØRE** fra eget underlager." },
+            { kode: "UNDERLAGER-01", tekst: "Skann koden til underlageret." },
+            { kode: "PROD-OXYNORM-5", mengde: 2, enhet: "stk", tekst: "Skann produktkoden, og skriv inn mengden." },
             { tekst: "Kontroller oppsummeringen, og tæpp ID-kortet for å signere." }
           ]
         }
@@ -357,10 +406,10 @@ window.KURS = {
       id: "case-7",
       nr: "M9",
       eyebrow: "Case 7",
-      tittel: "KASSERE små rester",
+      tittel: "KASSERE og ETTERKASSERE",   // R2-3
       knapp: "kassere",
       utkast: true,
-      kortTekst: "Du deler en Sobril tab 10 mg og mister den ene halvdelen på gulvet. Den kan ikke brukes. Kasser 0,5 stk.",
+      kortTekst: "Du mister en Sobril 10 mg på gulvet. Denne må kasseres.",   // R2-27
       steg: [
         {
           type: "registrer",
@@ -368,8 +417,8 @@ window.KURS = {
           tekst: "KASSERE brukes for å kassere SMÅ mengder lokalt, når kassasjonen ikke er knyttet til en annen registrering. Eksempler:",
           punkter: ["En tablett du har mistet på gulvet", "En halv tablett", "En skvett som ikke skal brukes"],
           rekke: [
-            { tekst: "Trykk på **KASSERE** små rester lokalt." },
-            { kode: "PROD-SOBRIL-10", mengde: 0.5, enhet: "stk", tekst: "Skann produktkoden, og skriv inn mengden.", merknad: "Desimaltall skrives med komma." }
+            { tekst: "Trykk på **KASSERE** rester / endose." },
+            { kode: "PROD-SOBRIL-10", mengde: 1, enhet: "stk", tekst: "Skann produktkoden, og skriv inn mengden.", merknad: "Mengden kan også være et desimaltall, for eksempel 0,5 stk for en halv tablett. Desimaltall skrives med komma." }
           ]
         },
         {
@@ -378,7 +427,13 @@ window.KURS = {
           antall: 2,
           tittel: "Dobbeltsigner med en gang",
           tekst: "KASSERE er en rød knapp og krever to signaturer med en gang. Tæpp ID-kortet to ganger.",
-          tips: "Gjelder det flere doser A- og B-preparater, skal de returneres til Sykehusapoteket, ikke kasseres lokalt."
+          tips: "Gjelder det flere doser A- og B-preparater, skal de returneres til apoteket, ikke kasseres lokalt."
+        },
+        {
+          // R2-3: ETTERKASSERE er nytt i tittelen. Innholdet venter på svar (README, spørsmål 9)
+          type: "info",
+          tittel: "Når bruker du ETTERKASSERE?",
+          tekst: "[AVKLARES: når brukes ETTERKASSERE, og hvor i appen? Er det kassasjon som er knyttet til en registrering du allerede har gjort, for eksempel resten av en ampulle etter UTTAK?]"
         }
       ]
     },
@@ -388,7 +443,7 @@ window.KURS = {
       id: "case-8",
       nr: "M10",
       eyebrow: "Case 8",
-      tittel: "LÅN til annen enhet",
+      tittel: "LÅN til/fra annen enhet",   // R2-3
       knapp: "lan",
       utkast: true,
       kortTekst: "En sykepleier fra naboposten mangler Oxycodone Hameln inj 10 mg/ml. Lån ut 2 stk til TEST Medisinrom 2.",
@@ -402,8 +457,8 @@ window.KURS = {
             "Medarbeiderne fra de to enhetene må møtes fysisk for overleveringen.",
             "Den som låner inn, tar med QR-koden til sitt medisinrom, enten i appen eller på en lapp."
           ],
-          tips: "Kontroller ID-kortet til den som skal låne, før du registrerer lånet.",
-          panel: { type: "idkort", idkort: "IDKORT-02" }
+          // Tipset om ID-kortet står under kortet i skannesonen, så «Ferdig, neste» får plass i 1280 × 650 (økt 11)
+          panel: { type: "idkort", idkort: "IDKORT-02", tekst: "Kontroller ID-kortet til den som skal låne, før du registrerer lånet. Sjekk at navn og bilde stemmer med personen foran deg." }
         },
         {
           type: "registrer",
@@ -425,7 +480,7 @@ window.KURS = {
             "Den som låner inn, signerer sammen med deg ved overleveringen.",
             "En tredje bruker dobbeltsignerer INNLÅNET på mottakerens lager. [AVKLARES: er det en kollega på mottakeravdelingen?]"
           ],
-          tips: "Oppgaven ligger i **OVERSIKT** under Dobbeltkontroll på mottakerens lager. [AVKLARES: stemmer det, eller signeres innlånet et annet sted? Langtrykk på registreringen?]"
+          tips: "Signeringsoppgaven for INNLÅN lages på mottakerens lager."   // R2-31
         }
       ]
     },
@@ -444,6 +499,10 @@ window.KURS = {
           type: "registrer",
           tittel: "Regelmessig kontroll",
           tekst: "Bruk den gule knappen for å dokumentere KONTROLL av beholdning. Enheten din skal ha en rutine for regelmessig telling og kontroll av holdbarhet.",
+          // R2-32: fagekspertenes tekst om skanning. Resten står i neste steg, så steget får plass uten rulling
+          punkter: [
+            "Skann legemidlene. Da går appen rett til **Skann legemiddel** etter hver signering. Velger du fra listen, går appen tilbake til listen."
+          ],
           tips: "Hvor ofte det kontrolleres, følger enhetens rutine.",
           rekke: [
             { tekst: "Trykk på **KONTROLL** av beholdning." },
@@ -453,12 +512,36 @@ window.KURS = {
           ]
         },
         {
+          // R2-32
+          type: "info",
+          tittel: "Er alt kontrollert?",
+          tekst: "Legemidler som er KONTROLL-signert de siste 12 timene, skjules fra listen. Slå på den grønne bryteren for å se alle. De som er kontrollert, har grønn hake.",
+          punkter: [
+            "Bruk filteret for reseptgruppene.",
+            "Se til slutt over at alle legemidlene i beholdningen er KONTROLL-signert de siste 12 timene."
+          ]
+        },
+        {
           type: "sporsmal",
           tekst: "Tellingen stemmer ikke med beholdningen i appen. Hva gjør du?",
           alternativer: ["Registrerer et avvik med årsak og kommentar", "Retter tallet uten kommentar", "Venter til neste kontroll"],
           fasit: "Registrerer et avvik med årsak og kommentar",
           forklaring: "Som i Case 2: korriger beholdningen og registrer avviket med sannsynlig årsak og en kommentar. [AVKLARES: fremgangsmåte ved avvik under KONTROLL]"
         }
+      ]
+    },
+
+    /* ───────────────────────── M11b · TIPS ───────────────────────── */
+    // R2-3: tiende kort i del B. Fagekspertene har bare skrevet «Viktig info».
+    {
+      id: "tips",
+      nr: "M11b",
+      eyebrow: "Tips",
+      tittel: "Viktig info",
+      utkast: true,
+      kortTekst: "[AVKLARES: hva skal stå i TIPS? Fagekspertene har bare skrevet «Viktig info»]",
+      steg: [
+        { type: "info", tittel: "Viktig info", tekst: "[AVKLARES: innhold]" }
       ]
     },
 
@@ -475,6 +558,8 @@ window.KURS = {
           tittel: "Skann det du sikter på",
           tekst: "Kameraet kan lett fange opp andre produktkoder og fødselsnumre enn det du siktet mot.",
           punkter: [
+            // R2-2: fagekspertene anbefaler å skanne hele veien
+            "Skann preparatet hele veien. Da er du sikker på at du får riktig preparat. Velg fra manuell liste bare hvis koden mangler eller ikke kan skannes.",
             "Beste skanneavstand er ca. 20 cm.",
             "Glinsende emballasje kan gi refleks. Endre vinkelen litt på det du skanner."
           ]
@@ -519,14 +604,120 @@ window.KURS = {
       steg: [
         {
           type: "instruks",
-          tittel: "Sjekk tilgangen din",
+          tittel: "Logg inn med ekte bruker",   // R2-39
           tekst: "Logg inn i appen med ditt ekte brukernavn og passord. Tilgangen kontrolleres, og du får opp hovedmenyen."
         },
         {
           type: "info",
           tittel: "Du er klar til å bruke NarKontroll",
-          tekst: "Ha en fin dag videre!",
-          panel: { type: "resultat" }
+          tekst: "Ha en fin dag videre!"
+        }
+      ]
+    },
+
+    /* ───────────────────────── Del D · Valgfrie moduler ─────────────────────────
+       R2-3, R2-41–45: fem kort i hovedmenyen (lysbilde 3). Lysbilde 41–45 har stikkord uten
+       overskrift, så koblingen mellom lysbilde og kort er en tolkning [spørsmål 2 i Endringer/README.md]:
+         Akuttvogn            ← lysbilde 42 (etterfylle etter bruk vs. etter datoutløp)
+         Rette opp feil       ← lysbilde 41 (dekke over andres feil, MOTTAK, sanntid)
+         Glemmekort           ← lysbilde 43 (nullstille eget ansattkort)
+         Kjekt å vite         ← lysbilde 44 (bare plassholdertekst)
+         Bidra til forbedring ← lysbilde 45 (narkontroll@so-hf.no)
+       Lysbilde 41 og 42 står i omvendt rekkefølge av kortene. */
+
+    {
+      id: "d-akuttvogn",
+      nr: "D1",
+      eyebrow: "Valgfri",
+      tittel: "Akuttvogn",
+      valgfri: true,
+      utkast: true,
+      kortTekst: "Akuttvognen etterfylles etter bruk til pasient og når holdbarheten er utløpt. Her ser du forskjellen.",
+      steg: [
+        {
+          type: "info",
+          tittel: "Etterfylle akuttvognen",
+          tekst: "Du etterfyller akuttvognen i to situasjoner:",
+          punkter: [
+            "Etterfylle etter bruk til pasient",
+            "Etterfylle etter at holdbarheten er utløpt"
+          ],
+          tips: "[AVKLARES: hvilke knapper i appen brukes, og hva er forskjellen i registreringen?]"
+        }
+      ]
+    },
+
+    {
+      id: "d-rette-opp-feil",
+      nr: "D2",
+      eyebrow: "Valgfri",
+      tittel: "Rette opp feil",
+      valgfri: true,
+      utkast: true,
+      kortTekst: "Feil i regnskapet skal rettes, ikke skjules. Her ser du hvorfor, og hvordan du unngår dem.",
+      steg: [
+        {
+          type: "info",
+          tittel: "Ikke dekk over andres feil",
+          tekst: "Har en kollega glemt å registrere noe, skal det rapporteres. Det er ikke angiveri. Det sørger for at regnskapet stemmer. [AVKLARES: tekst]"
+        },
+        {
+          type: "info",
+          tittel: "MOTTAK må stemme",
+          tekst: "Registrer mottak fra apoteket nøyaktig. Tallene brukes i månedsrapporten, og de blir bare riktige hvis MOTTAK stemmer. [AVKLARES: tekst]"
+        },
+        {
+          type: "info",
+          tittel: "Dokumenter i sanntid",
+          tekst: "Registrer i appen når du tar ut, legger tilbake eller mottar, ikke etterpå. [AVKLARES: tekst om sanntid vs. etterregistrering]"
+        }
+      ]
+    },
+
+    {
+      id: "d-glemmekort",
+      nr: "D3",
+      eyebrow: "Valgfri",
+      tittel: "Glemmekort",
+      valgfri: true,
+      utkast: true,
+      kortTekst: "[AVKLARES: når brukes glemmekort?]",
+      steg: [
+        {
+          type: "info",
+          tittel: "Nullstille eget ansattkort",
+          tekst: "[AVKLARES: fremgangsmåte]"
+        }
+      ]
+    },
+
+    {
+      id: "d-kjekt-a-vite",
+      nr: "D4",
+      eyebrow: "Valgfri",
+      tittel: "Kjekt å vite",
+      valgfri: true,
+      utkast: true,
+      kortTekst: "[AVKLARES: innhold]",
+      steg: [
+        { type: "info", tittel: "Kjekt å vite", tekst: "[AVKLARES: innhold]" }
+      ]
+    },
+
+    {
+      id: "d-forbedring",
+      nr: "D5",
+      eyebrow: "Valgfri",
+      tittel: "Bidra til forbedring",
+      valgfri: true,
+      utkast: true,
+      kortTekst: "Har du funnet en feil, eller har du et forslag? Si fra, så blir appen bedre.",
+      steg: [
+        {
+          type: "info",
+          tittel: "Si fra om feil og forslag",
+          tekst: "Send feil og forslag til **narkontroll@so-hf.no**. Du kan sende direkte fra appen eller på e-post.",
+          tips: "[AVKLARES: hvor i appen?]"
         }
       ]
     }

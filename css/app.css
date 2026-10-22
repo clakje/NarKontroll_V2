@@ -6,6 +6,8 @@
  *   --blekk-2    #4B6367 på #FFFFFF   6,4:1   på --sone 5,8:1
  *   --aksent     #186F7B på #FFFFFF   5,8:1   (logoens teal)
  *   Mørk: --blekk-2 #A3BDBF på #13272A 7,8:1, --aksent #79E3E0 på #13272A 10,9:1
+ *   Fullført kort (R2-4), på --ferdig-flate: --blekk 13,4:1, --aksent 5,2:1, haken --ferdig 5,5:1
+ *   Mørk: --blekk 12,5:1, --aksent 9,4:1, haken 7,9:1
  *
  * Appens knappefarger (Losningsforslag 2.5) brukes som merkefarger. Der hvit tekst
  * ga for lav kontrast, er fargen mørknet:
@@ -29,6 +31,11 @@
   --mint-myk: #D8F5F3;
   --ok: #23702A;
   --ok-myk: #E3F3E3;
+  /* R2-4: fullført modul i hovedmenyen. Haken i sirkel og lys grønn flate på hele kortet */
+  --ferdig: #23702A;
+  --ferdig-hake: #FFFFFF;
+  --ferdig-flate: #EAF6EA;
+  --ferdig-kant: #A9D4AC;
   --feil: #C41E24;
   --feil-myk: #FCE8E8;
   --obs: #8A5A00;
@@ -76,6 +83,10 @@
     --mint-myk: #173B3D;
     --ok: #7DD487;
     --ok-myk: #173220;
+    --ferdig: #7DD487;
+    --ferdig-hake: #0C181A;
+    --ferdig-flate: #15301E;
+    --ferdig-kant: #2F6B3A;
     --feil: #FF8A8A;
     --feil-myk: #3A1B1C;
     --obs: #F2C766;
@@ -94,7 +105,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* R2-8: plass til rullefeltet alltid, så kolonnene ikke hopper når et steg er høyere enn vinduet */
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
 
 body {
   margin: 0;
@@ -178,7 +190,7 @@ strong { font-weight: 650; }
 .toppfelt {
   position: sticky; top: 0; z-index: 20;
   display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 28px;
-  padding: 10px clamp(16px, 3vw, 36px);
+  padding: 4px clamp(16px, 3vw, 36px);   /* R2-3: lavere topp-bar. Knappene er fortsatt 44 px */
   background: color-mix(in srgb, var(--flate) 92%, transparent);
   -webkit-backdrop-filter: saturate(1.4) blur(12px);
   backdrop-filter: saturate(1.4) blur(12px);
@@ -189,8 +201,8 @@ strong { font-weight: 650; }
 }
 
 .merke { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--blekk); min-height: 44px; }
-.merke-ikon { width: 34px; height: 34px; flex: none; }
-.merke-navn { font-weight: 750; font-size: 1.1875rem; letter-spacing: -.01em; color: var(--aksent); }
+.merke-ikon { width: 28px; height: 28px; flex: none; }
+.merke-navn { font-weight: 750; font-size: 1.125rem; letter-spacing: -.01em; color: var(--aksent); }
 .merke-sub {
   font-size: .8125rem; font-weight: 600; color: var(--blekk-2);
   padding-left: 10px; border-left: 1px solid var(--linje-sterk);
@@ -224,7 +236,8 @@ body[data-visning="meny"] .plassering { visibility: hidden; }
 .scene {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  /* R2-8: to like kolonner på alle steg, så veilederen og skannesonen står på samme sted gjennom hele casen */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: clamp(20px, 3vw, 44px);
   width: 100%; max-width: 1320px; margin: 0 auto;
   padding: clamp(20px, 3.2vw, 44px) clamp(16px, 3vw, 36px) 48px;
@@ -288,6 +301,8 @@ body[data-visning="meny"] .plassering { visibility: hidden; }
   border: 1px solid var(--linje); box-shadow: var(--skygge);
   outline: none;
 }
+/* R2-8: steg med utenKort. Bare stegtelleren står igjen, i et lavt kort */
+.stegkort.stegkort--lav { padding-block: 14px; }
 .stegkort[data-type="obs"] { border-color: color-mix(in srgb, var(--obs) 45%, var(--linje)); background: linear-gradient(var(--obs-myk), var(--obs-myk)) padding-box; }
 .stegtype { display: inline-flex; align-items: center; gap: 8px; font-size: .8125rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--blekk-2); }
 .stegtype .ikon { width: 20px; height: 20px; color: var(--aksent); }
@@ -340,11 +355,17 @@ body[data-visning="meny"] .plassering { visibility: hidden; }
 .svar:has(input:checked) { border-color: var(--aksent); background: var(--mint-myk); }
 .svar:has(input:focus-visible) { outline: 3px solid var(--fokus); outline-offset: 2px; }
 .svar-status { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: .875rem; font-weight: 650; }
-.svar[data-resultat="riktig"] { border-color: var(--ok); background: var(--ok-myk); }
+/* R2-11: det valgte alternativet får fargen til svaret. :has() trengs for å slå .svar:has(input:checked) */
+.svar[data-resultat="riktig"]:has(input:checked) { border-color: var(--ok); background: var(--ok-myk); }
 .svar[data-resultat="riktig"] .svar-status { color: var(--ok); }
-.svar[data-resultat="feil"] { border-color: var(--feil); background: var(--feil-myk); }
+.svar[data-resultat="riktig"] input:checked ~ .svar-markor { border-color: var(--ok); }
+.svar[data-resultat="riktig"] input:checked ~ .svar-markor::after { background: var(--ok); }
+.svar[data-resultat="feil"]:has(input:checked) { border-color: var(--feil); background: var(--feil-myk); }
 .svar[data-resultat="feil"] .svar-status { color: var(--feil); }
-.svar-liste[data-laast] .svar { cursor: default; }
+.svar[data-resultat="feil"] input:checked ~ .svar-markor { border-color: var(--feil); }
+.svar[data-resultat="feil"] input:checked ~ .svar-markor::after { background: var(--feil); }
+/* Statusfeltet står i stegkortet fra start. Tomt tar det ikke plass (og ikke mellomrom i kortet) */
+.tilbakemelding-rot:empty { position: absolute; }
 
 .tilbakemelding {
   display: flex; gap: 12px; align-items: flex-start;
@@ -359,7 +380,6 @@ body[data-visning="meny"] .plassering { visibility: hidden; }
 /* Navigasjon mellom steg */
 .navrad { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .navrad-hoyre { display: flex; align-items: center; gap: 14px; margin-left: auto; }
-.tastatur-hint { font-size: .8125rem; color: var(--blekk-2); }
 kbd {
   font-family: var(--mono); font-size: .75rem; padding: 1px 6px; border-radius: 5px;
   border: 1px solid var(--linje-sterk); border-bottom-width: 2px; background: var(--flate);
@@ -372,9 +392,9 @@ kbd {
 /* ───────────── Skannesonen (signaturelementet) ───────────── */
 
 .sone {
-  position: sticky; top: 92px; align-self: start;
+  position: sticky; top: 80px; align-self: start;
   display: flex; flex-direction: column; align-items: center; gap: 18px;
-  min-height: min(640px, calc(100vh - 124px));
+  min-height: min(640px, calc(100vh - 112px));
   padding: clamp(22px, 2.6vw, 36px);
   border-radius: var(--r-l);
   background:
@@ -586,6 +606,9 @@ button.idkort:hover { box-shadow: 0 0 0 3px var(--mint), 0 14px 34px rgba(15, 43
 }
 .signatur[data-signert] { border-style: solid; border-color: var(--ok); color: var(--ok); background: var(--ok-myk); }
 .signatur .ikon { width: 16px; height: 16px; }
+/* R2-13: i utviklermodus simulerer et klikk på neste indikator et tæpp når ID-kortet ikke er tegnet */
+button.signatur { cursor: pointer; font: inherit; font-size: .8125rem; font-weight: 600; border-color: var(--aksent); color: var(--aksent); }
+button.signatur:hover { background: var(--mint-myk); }
 
 /* ───────────── Registrering på én side ───────────── */
 
@@ -614,16 +637,6 @@ button.idkort:hover { box-shadow: 0 0 0 3px var(--mint), 0 14px 34px rgba(15, 43
 .rekke-qr .qr-flate { width: clamp(120px, 17vh, 168px); border-radius: 8px; box-shadow: 0 0 0 1px #E1E6E7; }
 .sone-hoyre { font-size: .8125rem; color: var(--blekk-2); text-align: right; }
 .sone[data-rekke] .dev-hint { align-self: center; }
-/* Registreringen trenger mer plass enn ett steg, så kolonnene blir like brede */
-@media (min-width: 861px) {
-  .scene:has(> .sone[data-rekke]) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-}
-/* Steg med iKortet: radene står i stegkortet, og siden har bare én kolonne */
-.scene:has(.stegkort[data-ikortet]) { grid-template-columns: minmax(0, 760px); justify-content: center; }
-/* Steg uten skannesone (kontrollspørsmål): én kolonne, midtstilt */
-.scene:not([data-visning="meny"]):not(:has(> .sone)) { grid-template-columns: minmax(0, 760px); justify-content: center; }
-.stegkort[data-ikortet] { gap: 14px; }
-.stegkort[data-ikortet] .dev-hint { align-self: center; }
 
 /* ───────────── Mengde ───────────── */
 
@@ -654,12 +667,13 @@ button.idkort:hover { box-shadow: 0 0 0 3px var(--mint), 0 14px 34px rgba(15, 43
 /* ───────────── Faktakort ───────────── */
 
 .fakta {
-  width: 100%; max-width: 420px; background: var(--flate); border: 1px solid var(--linje);
+  /* R2-9: bredere, så raden «Kan utsettes» med varselet får plass uten å rulle i 1280 × 650 */
+  width: 100%; max-width: 520px; background: var(--flate); border: 1px solid var(--linje);
   border-radius: var(--r-l); box-shadow: var(--skygge); overflow: hidden;
 }
 .fakta-tittel { padding: 16px 20px 10px; font-size: .8125rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--aksent); }
 .fakta dl { margin: 0; padding: 0 20px 8px; }
-.fakta-rad { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 12px; padding: 11px 0; border-top: 1px solid var(--linje); }
+.fakta-rad { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; padding: 11px 0; border-top: 1px solid var(--linje); }
 .fakta-rad:first-child { border-top: 0; }
 .fakta dt { color: var(--blekk-2); font-size: .9375rem; }
 .fakta dd { margin: 0; font-weight: 600; font-size: .9375rem; }
@@ -670,27 +684,27 @@ button.idkort:hover { box-shadow: 0 0 0 3px var(--mint), 0 14px 34px rgba(15, 43
 .slik-ikon { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; background: var(--flate); border: 1px solid var(--sone-kant); color: var(--aksent); box-shadow: var(--skygge); }
 .slik-ikon .ikon { width: 26px; height: 26px; }
 
-/* ───────────── Resultat ───────────── */
-
-.resultat { width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
-.resultat-merke { width: 96px; height: 96px; }
-.resultat-tall { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
-.resultat-tall div { background: var(--flate); border: 1px solid var(--linje); border-radius: var(--r-m); padding: 14px 10px; }
-.resultat-tall b { display: block; font-size: 1.75rem; font-weight: 750; color: var(--aksent); font-variant-numeric: tabular-nums; }
-.resultat-tall span { font-size: .8125rem; color: var(--blekk-2); }
-
 /* ───────────── Hovedmenyen ───────────── */
 
 /* Hele menyen skal få plass på én skjerm uten å rulle, også på en 16"-bærbar (tilbakemelding H-04).
    Fra 1000 px står gruppenavnet til venstre for kortene, så overskriftene ikke tar egne rader. */
-.scene[data-visning="meny"] { display: block; max-width: 1240px; }
+.scene[data-visning="meny"] { display: block; max-width: 1240px; padding-bottom: 24px; }
 .meny { display: flex; flex-direction: column; gap: 12px; }
 
-/* Tittelen øverst, avsnittene under hverandre i full bredde */
+/* Tittelen øverst, avsnittene under hverandre i full bredde.
+   R2-3: ingressen er fire korte linjer, så avsnittene står tett */
 .meny-hode { display: flex; flex-direction: column; gap: 6px; }
 .meny-tittel { font-size: 1.5rem; font-weight: 750; letter-spacing: -.015em; line-height: 1.25; outline: none; }
-.meny-ingress { display: grid; gap: 6px; font-size: .9375rem; line-height: 1.5; color: var(--blekk-2); }
+.meny-ingress { display: grid; gap: 0; font-size: .9375rem; line-height: 1.45; color: var(--blekk-2); }
 .meny-ingress p { text-wrap: pretty; }
+
+/* R2-3: «Obligatoriske moduler» over del A–C og «Valgfrie moduler» over del D. Overskriften står
+   på skillelinjen, så den første gruppen under den ikke trenger sin egen */
+.meny-del-tittel {
+  padding-top: 10px; border-top: 1px solid var(--linje-sterk);
+  font-size: .8125rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 1.2; color: var(--blekk-2);
+}
+.meny-del-tittel + .meny-gruppe { padding-top: 0; border-top: 0; }
 
 /* Gruppene: alltid åpne */
 .meny-gruppe { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding-top: 12px; border-top: 1px solid var(--linje); }
@@ -705,10 +719,14 @@ button.idkort:hover { box-shadow: 0 0 0 3px var(--mint), 0 14px 34px rgba(15, 43
 .gruppe-teller[data-ferdig] { color: var(--ok); }
 @media (min-width: 1000px) {
   .meny-gruppe { grid-template-columns: 210px minmax(0, 1fr); gap: 24px; }
-  .gruppe-hode { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 4px; }
+  /* R2-3: telleren står på linjen med tittelen («0 av 1»), så gruppekolonnen ikke blir høyere enn
+     kortene. Ordet «fullført» er bare for skjermleseren her */
+  .gruppe-hode { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-content: start; gap: 4px 8px; }
+  .gruppe-tittel { grid-column: 1; grid-row: 1; }
+  .gruppe-teller { grid-column: 2; grid-row: 1; margin-left: 0; }
+  .gruppe-teller-ord { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   /* Rykket inn under tittelen, forbi nummeret */
-  .gruppe-ingress, .gruppe-teller { margin-left: 0; padding-left: 36px; }
-  .gruppe-ingress { font-size: .8125rem; line-height: 1.4; }
+  .gruppe-ingress { grid-column: 1 / -1; padding-left: 36px; font-size: .8125rem; line-height: 1.4; }
 }
 
 /* Modulkortene: hele kortet er én knapp. Merkelapp og status øverst, tittelen under */
@@ -730,18 +748,20 @@ button.idkort:hover { box-shadow: 0 0 0 3px var(--mint), 0 14px 34px rgba(15, 43
 .modulkort:active { transform: none; }
 .modulkort:focus-visible { outline-offset: 3px; border-radius: var(--r-m); }
 .modulkort[data-anbefalt] { border-color: var(--aksent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 55%, transparent), var(--skygge); }
-.modulkort[data-status="ferdig"] { background: color-mix(in srgb, var(--ok-myk) 45%, var(--flate)); }
+/* R2-4 (Alternativ 1): fullført modul har lys grønn flate og grønn hake i sirkel øverst til høyre.
+   Appfargen øverst på case-kortet blir stående */
+.modulkort[data-status="ferdig"] { background: var(--ferdig-flate); border-color: var(--ferdig-kant); }
+.modulkort[data-status="ferdig"]:hover { border-color: var(--aksent); }
 
 .modulkort-topp { display: flex; align-items: center; gap: 4px 6px; flex-wrap: wrap; min-height: 20px; }
 .modulkort .eyebrow { font-size: .75rem; }
 .modulkort .merkelapp { padding: 1px 7px; font-size: .6875rem; }
 .modulkort-tittel { font-size: 1rem; font-weight: 700; line-height: 1.3; letter-spacing: -.005em; }
 .modulkort-status { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: .75rem; font-weight: 650; color: var(--blekk-2); white-space: nowrap; }
-.modulkort-status[data-status="ferdig"] { color: var(--ok); }
 .modulkort-status[data-status="pabegynt"] { color: var(--aksent); }
 .modulkort-status .statusring { width: 13px; height: 13px; }
-/* Fullført: hake i grønn sirkel. Kortet er også grønt */
-.modulkort-status[data-status="ferdig"] .ikon { width: 20px; height: 20px; padding: 3px; border-radius: 999px; background: var(--ok); color: var(--flate); stroke-width: 3; }
+/* Negativ marg: haken gjør ikke kortet høyere enn de andre, så menyen ikke vokser når kort blir fullført */
+.modulkort-status[data-status="ferdig"] .ikon { width: 22px; height: 22px; margin-block: -2px; padding: 4px; border-radius: 999px; background: var(--ferdig); color: var(--ferdig-hake); stroke-width: 3.2; }
 
 /* Fremdriften: én smal linje nederst (H-09) */
 .meny-fremdrift {
@@ -756,7 +776,8 @@ button.idkort:hover { box-shadow: 0 0 0 3px var(--mint), 0 14px 34px rgba(15, 43
 .fremdrift-tekst p { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 16px; font-size: .8125rem; color: var(--blekk-2); }
 .fremdrift-lagring { display: inline-flex; align-items: center; gap: 6px; }
 .fremdrift-tekst strong { color: var(--blekk); font-variant-numeric: tabular-nums; }
-.fremdrift-spor { flex: 1 1 160px; display: flex; gap: 3px; }
+/* Sporet krymper først, så en lang «Bra! Du har fullført …» og «Neste: …» står på én linje i 1280 px (økt 11) */
+.fremdrift-spor { flex: 1 1 60px; display: flex; gap: 3px; }
 .fremdrift-spor span { flex: 1; height: 6px; border-radius: 3px; background: var(--linje); }
 .fremdrift-spor span[data-ferdig] { background: var(--spor-ferdig); }
 .meny-fremdrift .knapp { margin-left: auto; white-space: normal; text-align: left; }
@@ -855,7 +876,6 @@ body:has(.intro[open]) { overflow: hidden; }
    når nettleseren og oppgavelinjen er trukket fra. Da strammes avstandene, så steget og
    registreringen får plass uten å rulle. Gjelder ikke smal skjerm (én kolonne). */
 @media (min-width: 861px) and (max-height: 900px) {
-  .toppfelt { padding-top: 6px; padding-bottom: 6px; }
   .scene { padding-top: 16px; padding-bottom: 20px; }
   .veileder { gap: 14px; }
   .modul-topp { gap: 4px; }
@@ -864,7 +884,7 @@ body:has(.intro[open]) { overflow: hidden; }
   .stegkort { padding: 20px 24px; gap: 12px; }
   .stegtittel, .historie-tittel { font-size: 1.375rem; }
   .tips { padding-top: 10px; }
-  .sone { top: 72px; min-height: min(640px, calc(100vh - 92px)); padding: 18px 22px; gap: 12px; }
+  .sone { top: 64px; min-height: min(640px, calc(100vh - 84px)); padding: 18px 22px; gap: 12px; }
   .sone[data-rekke] .sone-innhold, .rekke { gap: 8px; }
   .rekke-rad { padding: 6px 10px; }
   .idkort-scene { gap: 12px; }
@@ -877,26 +897,51 @@ body:has(.intro[open]) { overflow: hidden; }
 }
 @media (min-width: 861px) and (max-height: 760px) {
   .telefon { zoom: .74; }
+  /* R2-11: tilbakemeldingen kommer under alternativene, så den holdes lav */
+  .tilbakemelding { padding: 10px 14px; font-size: .9375rem; line-height: 1.45; }
 }
-/* 14"-bærbar med 1366 × 768 (ca. 600 px igjen i nettleseren) */
-@media (min-width: 861px) and (max-height: 640px) {
+/* 14"-bærbar med 1366 × 768 (ca. 600 px igjen i nettleseren), og 1280 × 650. Fra 680 px, som hovedmenyen,
+   så Case 5 og Case 8 steg 1 får «Ferdig, neste» på skjermen i 1280 × 650 (økt 11) */
+@media (min-width: 861px) and (max-height: 680px) {
   .scene { padding-top: 10px; }
   .veileder { gap: 10px; }
   .modul-tittel { font-size: 1.5rem; }
   .historie { padding: 8px 14px; font-size: .875rem; }
   .stegkort { padding: 16px 20px; gap: 10px; }
-  .sone { top: 66px; padding: 14px 18px; }
+  .sone { top: 58px; padding: 14px 18px; }
   .fakta-rad { padding: 8px 0; }
   .sone[data-rekke] .sone-innhold, .rekke { gap: 6px; }
   .rekke-rad { padding: 4px 8px; }
   .telefon { zoom: .68; }
-  .resultat { gap: 12px; }
-  .resultat-merke { width: 72px; height: 72px; }
-  .meny { gap: 8px; }
+}
+
+/* Hovedmenyen på lav skjerm (H-04, R2-3): del A–D og fremdriften skal få plass uten å rulle i
+   1536 × 730. Avstandene og kortene strammes inn, men teksten blir ikke mindre */
+@media (min-width: 861px) and (max-height: 900px) {
+  .scene[data-visning="meny"] { padding-top: 8px; padding-bottom: 8px; }
+  .meny { gap: 6px; }
+  .meny-hode { gap: 2px; }
+  .meny-ingress { line-height: 1.35; }
+  .meny-del-tittel { padding-top: 5px; }
   .meny-gruppe { padding-top: 8px; }
-  .modulkort { padding-top: 8px; padding-bottom: 8px; }
-  .modulkort[data-farge] { padding-top: 12px; }
-  .meny-fremdrift { padding-top: 6px; padding-bottom: 6px; }
+  .gruppe-hode { row-gap: 2px; }
+  .gruppe-ingress { line-height: 1.35; }
+  .kortgrid { gap: 8px; }
+  .modulkort { gap: 2px; padding-top: 7px; padding-bottom: 8px; }
+  .modulkort[data-farge] { padding-top: 11px; }
+  .modulkort-topp { min-height: 18px; }
+  .modulkort-tittel { line-height: 1.25; }
+  .meny-fremdrift { margin-top: 0; padding-top: 6px; padding-bottom: 6px; }
+}
+/* 1280 × 650: de fire linjene i ingressen flyter sammen til ett avsnitt. Litt rulling er greit her,
+   men teksten blir ikke mindre enn 15 px */
+@media (min-width: 861px) and (max-height: 680px) {
+  .meny { gap: 4px; }
+  .meny-tittel { font-size: 1.375rem; }
+  .modulkort-tittel { font-size: .9375rem; }
+  .meny-ingress { display: block; }
+  .meny-ingress p { display: inline; }
+  .meny-ingress p + p::before { content: " "; }
 }
 
 /* ───────────── Tilpasning til bredde ───────────── */
@@ -906,7 +951,6 @@ body:has(.intro[open]) { overflow: hidden; }
   .merke-sub { display: none; }
   .topp-handlinger .knapp span { display: none; }
   .topp-handlinger .knapp { width: 44px; padding: 0; }
-  .tastatur-hint { display: none; }
 }
 
 @media (max-width: 860px) {
@@ -935,6 +979,8 @@ body:has(.intro[open]) { overflow: hidden; }
   .fremdrift-spor span, .stegprikker span { border: 1px solid CanvasText; }
   .fremdrift-spor span[data-ferdig], .stegprikker span[data-s="ferdig"] { background: Highlight; }
   .modulkort { border: 2px solid ButtonText; }
+  /* R2-4: den grønne flaten forsvinner i høykontrast, men haken skal fortsatt synes */
+  .modulkort-status[data-status="ferdig"] .ikon { forced-color-adjust: none; background: CanvasText; color: Canvas; }
   .sokeramme::before { border: 3px solid CanvasText; background: none; }
 }
 
@@ -999,6 +1045,9 @@ body:has(.intro[open]) { overflow: hidden; }
   .rute-tlf .ark-appknapp { width: 27mm; min-height: 12mm; }
   .ark-situasjon .ark-appknapp { flex: none; width: 34mm; min-height: 15mm; }
   .ark-situasjon .ark-appknapp b { font-size: 10.5pt; }
+  /* R2-4: lange knappenavn (Signeringsoppgaver og nylig historikk) får mindre skrift */
+  .ark-appknapp[data-lang] b { font-size: 7pt; }
+  .ark-situasjon .ark-appknapp[data-lang] b { font-size: 8.5pt; }
   .ark-kortrad { display: flex; gap: 4mm; }
   .ark-kort { position: relative; display: flex; flex-direction: column; align-items: center; gap: .5mm; color: #0F2B2F; }
   .ark-kort .ikon { stroke-width: 1.4; }

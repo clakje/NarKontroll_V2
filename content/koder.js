@@ -11,7 +11,7 @@ window.KODER = {
   // Lager og underlager
   "LAGER-01":      { type: "lager",   navn: "TEST Medisinrom 1",               payload: "NKDUMMY:LAGER:TEST-MEDISINROM-1" },
   "LAGER-02":      { type: "lager",   navn: "TEST Medisinrom 2 (nabopost)",    payload: "NKDUMMY:LAGER:TEST-MEDISINROM-2" },
-  "UNDERLAGER-01": { type: "lager",   navn: "TEST Medisintralle",              payload: "NKDUMMY:UNDERLAGER:TEST-MEDISINTRALLE" },
+  "UNDERLAGER-01": { type: "lager",   navn: "TEST Underlager",                 payload: "NKDUMMY:UNDERLAGER:TEST-MEDISINTRALLE" },
 
   // Pasienter (fiktive). Ekte test-ID-er avklares med apputvikler.
   "PAS-01": { type: "pasient", navn: "Line Danser",   payload: "NKDUMMY:PAS:LINE-DANSER" },
@@ -26,7 +26,7 @@ window.KODER = {
   "PROD-SOBRIL-15":     { type: "produkt", navn: "Sobril tab 15 mg",                           ab: "B", enhet: "stk", payload: "NKDUMMY:PROD:SOBRIL-TAB-15MG" },
   "PROD-COSYLAN":       { type: "produkt", navn: "Cosylan mikst 1,7 mg/ml, 180 ml",            ab: "B", enhet: "ml",  payload: "NKDUMMY:PROD:COSYLAN-MIKST-180ML" },
   "PROD-OXYCODONE-INJ": { type: "produkt", navn: "Oxycodone Hameln inj 10 mg/ml, 2 ml",        ab: "A", enhet: "stk", payload: "NKDUMMY:PROD:OXYCODONE-HAMELN-INJ-2ML" },
-  "PROD-METADON-MIKST": { type: "produkt", navn: "Metadon Nordic Drugs mikst 80 mg/flaske",    ab: "A", enhet: "[AVKLARES: unntak?]", payload: "NKDUMMY:PROD:METADON-MIKST-80MG" },
+  "PROD-METADON-MIKST": { type: "produkt", navn: "Metadon Nordic Drugs mikst 80 mg/flaske",    ab: "A", enhet: "ml",  payload: "NKDUMMY:PROD:METADON-MIKST-80MG" },
   "PROD-DOLCONTIN-100": { type: "produkt", navn: "Dolcontin depottab 100 mg",                  ab: "A", enhet: "stk", payload: "NKDUMMY:PROD:DOLCONTIN-DEPOTTAB-100MG" },
 
   // ID-kort (NFC, ingen QR)
