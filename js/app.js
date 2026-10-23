@@ -65,6 +65,10 @@
   var tilstand = nyTilstand();
   var visning = "meny";      // "meny" eller "modul"
   var nyligFerdig = null;    // modul-ID som hovedmenyen gratulerer med
+  // Utformingen av hovedmenyen: "kort" (rutenett, del A–D under hverandre) eller "liste" (lister i kort,
+  // fremdriften øverst til høyre og del D i egen kolonne). Valget huskes bare i denne nettleseren.
+  var MENYUTFORMINGER = [["kort", "Kort", "i-rutenett"], ["liste", "Liste", "i-liste"]];
+  var menyUtforming = "kort";
   var dev = false;
   var devLukket = true;       // panelet starter sammenfoldet, så det ikke dekker steget
   var signerte = 0;          // ID-kort-tæpp på gjeldende steg (dev)
@@ -128,7 +132,7 @@
     (KURS.grupper || []).forEach(function (g) {
       var idx = g.moduler.map(modulIndeks).filter(function (i) { return i >= 0; });
       idx.forEach(function (i) { brukt[i] = true; });
-      if (idx.length) liste.push({ del: g.del, tittel: g.tittel, tekst: g.tekst, valgfri: !!g.valgfri, moduler: idx });
+      if (idx.length) liste.push({ del: g.del, tittel: g.tittel, tekst: g.tekst, listeTekst: g.listeTekst, valgfri: !!g.valgfri, moduler: idx });
     });
     var rest = MODULER.map(function (m, i) { return i; }).filter(function (i) { return !brukt[i]; });
     if (rest.length) liste.push({ tittel: liste.length ? "Andre moduler" : "Moduler", moduler: rest });
@@ -709,12 +713,11 @@
   // Hele menyen skal få plass på én skjerm uten å rulle, også på en 16"-bærbar (tilbakemelding H-04):
   // kort tittel og ingress, gruppene åpne under hverandre, lave kort og en smal fremdriftslinje nederst.
   function menyHtml() {
+    if (menyUtforming === "liste") return menyListeHtml();
     var hm = KURS.hovedmeny || {};
     var h = '<section class="meny" aria-labelledby="meny-tittel">';
 
-    var avsnitt = [].concat(hm.ingress || []);
-    h += '<div class="meny-hode"><h1 class="meny-tittel" id="meny-tittel" tabindex="-1">' + fmt(hm.tittel || KURS.tittel) + "</h1>" +
-      (avsnitt.length ? '<div class="meny-ingress">' + avsnitt.map(function (p) { return "<p>" + fmt(p) + "</p>"; }).join("") + "</div>" : "") + "</div>";
+    h += menyHodeHtml();
 
     // R2-3: «Obligatoriske moduler» over del A–C og «Valgfrie moduler» over del D. Gruppene er h3 under dem
     var deler = hm.deler || {}, forrigeDel = null;
@@ -734,22 +737,55 @@
     return h + fremdriftHtml() + "</section>";
   }
 
+  // Tittelen med valget av utforming ved siden av, og ingressen under. Felles for begge utformingene
+  function menyHodeHtml() {
+    var hm = KURS.hovedmeny || {};
+    var avsnitt = [].concat(hm.ingress || []);
+    return '<div class="meny-hode"><div class="meny-tittelrad"><h1 class="meny-tittel" id="meny-tittel" tabindex="-1">' + fmt(hm.tittel || KURS.tittel) + "</h1>" +
+      utformingsvalgHtml() + "</div>" +
+      (avsnitt.length ? '<div class="meny-ingress">' + avsnitt.map(function (p) { return "<p>" + fmt(p) + "</p>"; }).join("") + "</div>" : "") + "</div>";
+  }
+
+  function utformingsvalgHtml() {
+    return '<div class="utformingsvalg" role="group" aria-label="Utforming av hovedmenyen">' +
+      MENYUTFORMINGER.map(function (u) {
+        return '<button class="utformingsvalg-knapp" type="button" data-handling="menyutforming" data-verdi="' + u[0] + '" aria-pressed="' + (menyUtforming === u[0]) + '">' +
+          ikon(u[2]) + "<span>" + esc(u[1]) + "</span></button>";
+      }).join("") + "</div>";
+  }
+
+  function byttMenyutforming(verdi) {
+    if (verdi === menyUtforming) return;
+    menyUtforming = verdi;
+    try { localStorage.setItem("nk-menyutforming", verdi); } catch (e) { /* privat modus */ }
+    tegn(false);
+    var knapp = $('[data-handling="menyutforming"][data-verdi="' + verdi + '"]');
+    if (knapp) knapp.focus();
+    kunngjor(verdi === "liste" ? "Hovedmenyen vises som liste." : "Hovedmenyen vises som kort.");
+  }
+
+  // Overskriften i fremdriften: gratulasjon eller status
+  function fremdriftTittel(ferdige, alle, neste) {
+    if (nyligFerdig && modulIndeks(nyligFerdig) >= 0) {
+      var nm = MODULER[modulIndeks(nyligFerdig)];
+      return alle && !nm.valgfri ? "Gratulerer, kurset er fullført!" : "Bra! Du har fullført " + modulNavn(nm) + ".";
+    }
+    if (alle) return "Kurset er fullført";
+    if (ferdige === 0 && neste === 0 && tilstand.sett[MODULER[0].id] == null) return "Klar til å begynne?";
+    return "Din fremdrift";
+  }
+
+  function lagringHtml() {
+    return '<span class="fremdrift-lagring"><span class="status-prikk" data-modus="' + SCORM.modus + '" aria-hidden="true"></span>' +
+      (SCORM.modus === "lms" ? "Fremdriften lagres i LMS." : "Lokal testmodus: fremdriften lagres bare i denne nettleseren.") + "</span>";
+  }
+
   // Smal linje nederst: gratulasjon eller status, fremdriften, hvor den lagres, og én knapp videre
   function fremdriftHtml() {
     var ferdige = antallFerdig(), n = OBLIGATORISKE.length, alle = ferdige === n;
     var neste = anbefaltNeste();
-    var tittel, meta = "<span><strong>" + ferdige + "</strong> av " + n + " moduler fullført", knapp = "";
-
-    if (nyligFerdig && modulIndeks(nyligFerdig) >= 0) {
-      var nm = MODULER[modulIndeks(nyligFerdig)];
-      tittel = alle && !nm.valgfri ? "Gratulerer, kurset er fullført!" : "Bra! Du har fullført " + modulNavn(nm) + ".";
-    } else if (alle) {
-      tittel = "Kurset er fullført";
-    } else if (ferdige === 0 && neste === 0 && tilstand.sett[MODULER[0].id] == null) {
-      tittel = "Klar til å begynne?";
-    } else {
-      tittel = "Din fremdrift";
-    }
+    var tittel = fremdriftTittel(ferdige, alle, neste);
+    var meta = "<span><strong>" + ferdige + "</strong> av " + n + " moduler fullført", knapp = "";
 
     // R2-40: ingen poengsum i kurset. LMS-et får den fortsatt (lagre)
     if (!alle && neste >= 0) {
@@ -758,8 +794,7 @@
       knapp = '<button class="knapp knapp-primar" type="button" data-gaa="' + neste + '"><span>' + esc(verb === "Start kurset" ? verb : verb + ": " + modulNavn(m)) + "</span>" + ikon("i-neste") + "</button>";
     }
 
-    meta += '</span><span class="fremdrift-lagring"><span class="status-prikk" data-modus="' + SCORM.modus + '" aria-hidden="true"></span>' +
-      (SCORM.modus === "lms" ? "Fremdriften lagres i LMS." : "Lokal testmodus: fremdriften lagres bare i denne nettleseren.") + "</span>";
+    meta += "</span>" + lagringHtml();
 
     var spor = "";
     OBLIGATORISKE.forEach(function (m) { spor += "<span" + (tilstand.ferdig[m.id] ? " data-ferdig" : "") + "></span>"; });
@@ -789,6 +824,100 @@
       '<span class="modulkort-topp"><span class="eyebrow" id="' + id + '-e">' + esc(m.eyebrow) + "</span>" +
       (m.utkast ? '<span class="merkelapp">Utkast</span>' : "") + status + "</span>" +
       '<span class="modulkort-tittel" id="' + id + '-t">' + fmt(m.kortTittel || m.tittel) + "</span>" +
+      '<span class="sr" id="' + id + '-s">. ' + esc(st.tekst) + (anbefalt ? ", anbefalt neste" : "") + ". " + esc(st.handling) + "</span>" +
+      "</button></li>";
+  }
+
+  /* ───────────── Hovedmenyen som liste ───────────── */
+
+  // Alternativ utforming: del A–C som lister i hvert sitt kort, fremdriften med knappen videre øverst
+  // til høyre, og del D i egen kolonne under den. Ruller på lave skjermer.
+  function menyListeHtml() {
+    var deler = (KURS.hovedmeny || {}).deler || {};
+    var obligatoriske = "", valgfrie = "";
+    grupper().forEach(function (g, gi) {
+      if (g.valgfri) valgfrie += listegruppeHtml(g, gi);
+      else obligatoriske += listegruppeHtml(g, gi);
+    });
+    // Overskriftene «Obligatoriske moduler» og «Valgfrie moduler» er bare for skjermleseren her.
+    // To spalter, så del A–C starter rett under ingressen og ikke venter på at fremdriftskortet slutter
+    return '<section class="meny meny--liste" aria-labelledby="meny-tittel">' +
+      '<div class="meny-spalte">' + menyHodeHtml() +
+      '<div class="meny-kolonne">' + (deler.obligatorisk ? '<h2 class="sr">' + esc(deler.obligatorisk) + "</h2>" : "") + obligatoriske + "</div></div>" +
+      '<div class="meny-spalte meny-spalte--side">' + fremdriftKortHtml() +
+      (valgfrie ? '<div class="meny-kolonne meny-kolonne--side">' + (deler.valgfri ? '<h2 class="sr">' + esc(deler.valgfri) + "</h2>" : "") + valgfrie + "</div>" : "") +
+      "</div></section>";
+  }
+
+  // Kortet øverst til høyre: status, hvor mange obligatoriske som er fullført, og én knapp videre
+  function fremdriftKortHtml() {
+    var ferdige = antallFerdig(), n = OBLIGATORISKE.length, alle = ferdige === n;
+    var neste = anbefaltNeste(), knapp = "";
+    if (!alle && neste >= 0) {
+      var verb = modulStatus(neste).kode === "pabegynt" ? "Fortsett der du slapp" : ferdige === 0 && neste === 0 ? "Start kurset" : "Neste";
+      knapp = '<button class="knapp knapp-primar fremdrift-kort-knapp" type="button" data-gaa="' + neste + '">' +
+        '<span><span class="fremdrift-kort-verb">' + esc(verb) + '</span><span class="fremdrift-kort-modul">' + esc(modulNavn(MODULER[neste])) + "</span></span>" +
+        ikon("i-neste") + "</button>";
+    }
+    return '<div class="fremdrift-kort"' + (alle ? " data-alle" : nyligFerdig ? " data-nylig" : "") + ">" +
+      '<div class="fremdrift-kort-topp"><h2 id="meny-fremdrift-tittel" tabindex="-1">' + (nyligFerdig || alle ? ikon("i-sjekk") : "") + esc(fremdriftTittel(ferdige, alle, neste)) + "</h2>" +
+      '<p class="fremdrift-kort-tall"><strong>' + ferdige + "</strong> av " + n + " obligatoriske</p></div>" +
+      '<div class="fremdrift-linje" aria-hidden="true"><span style="width:' + Math.round((ferdige / n) * 100) + '%"></span></div>' +
+      knapp + "<p>" + lagringHtml() + "</p></div>";
+  }
+
+  function listegruppeHtml(g, gi) {
+    var ferdige = g.moduler.filter(function (i) { return tilstand.ferdig[MODULER[i].id]; }).length;
+    var nummerert = g.moduler.some(function (i) { return caseNr(MODULER[i]); });
+    var tekst = g.listeTekst || g.tekst;
+    return '<section class="listegruppe"' + (g.valgfri ? " data-valgfri" : "") + ' aria-labelledby="gruppe-' + gi + '">' +
+      '<div class="listegruppe-hode"><span class="gruppe-nr" aria-hidden="true">' + esc(g.del || gi + 1) + "</span>" +
+      '<h3 class="listegruppe-tittel" id="gruppe-' + gi + '">' + (g.del ? '<span class="sr">Del ' + esc(g.del) + ": </span>" : "") + esc(g.tittel) + "</h3>" +
+      (g.valgfri ? "" : '<p class="gruppe-teller"' + (ferdige === g.moduler.length ? " data-ferdig" : "") + ">" + ferdige + " av " + g.moduler.length + " fullført</p>") +
+      (tekst ? '<p class="listegruppe-ingress">' + esc(tekst) + "</p>" : "") + "</div>" +
+      '<ol class="modulliste"' + (nummerert ? " data-nummerert" : "") + ">" + g.moduler.map(modulradHtml).join("") + "</ol></section>";
+  }
+
+  // «Case 5» → "5". Casene får nummeret i en egen kolonne i listen
+  function caseNr(m) {
+    var treff = /^Case (\d+)$/.exec(m.eyebrow || "");
+    return treff ? treff[1] : "";
+  }
+
+  // Tittelen i listen: casene og del D med bare tittelen, de andre med merkelappen foran («Gode råd: skanning …»)
+  function radTittel(m) {
+    if (m.kortTittel) return m.kortTittel;
+    if (caseNr(m) || m.valgfri) return m.tittel;
+    var t = m.tittel;
+    if (/^[A-ZÆØÅ][a-zæøå]/.test(t)) t = t.charAt(0).toLowerCase() + t.slice(1);
+    return m.eyebrow + ": " + t;
+  }
+
+  // Én rad: statusmerke, nummer (casene), tittel og status til høyre. Anbefalt neste er fremhevet med «Fortsett» eller «Start».
+  // Del D har ingen statusmerke, men en pil til høyre.
+  function modulradHtml(i) {
+    var m = MODULER[i], st = modulStatus(i), nr = caseNr(m);
+    var anbefalt = i === anbefaltNeste();
+    var id = "mr-" + i;
+
+    var merke = "";
+    if (!m.valgfri) {
+      merke = st.kode === "pabegynt"
+        ? '<span class="modulrad-merke" data-status="pabegynt" style="--p:' + Math.round(((tilstand.sett[m.id] + 1) / m.steg.length) * 100) + '%" aria-hidden="true"></span>'
+        : '<span class="modulrad-merke" data-status="' + st.kode + '" aria-hidden="true">' + (st.kode === "ferdig" ? ikon("i-sjekk") : "") + "</span>";
+    }
+
+    var hoyre = "";
+    if (st.kode === "ferdig") hoyre += '<span class="modulrad-status" data-status="ferdig">Fullført</span>';
+    else if (st.kode === "pabegynt") hoyre += '<span class="modulrad-status">' + (tilstand.sett[m.id] + 1) + " av " + m.steg.length + " steg</span>";
+    if (anbefalt) hoyre += '<span class="modulrad-pille">' + (st.kode === "pabegynt" ? "Fortsett" : "Start") + "</span>";
+    if (m.valgfri) hoyre += ikon("i-hoyre", "modulrad-pil");
+
+    return '<li><button class="modulrad" type="button" data-gaa="' + i + '" data-status="' + st.kode + '"' + (anbefalt ? " data-anbefalt" : "") +
+      ' aria-labelledby="' + id + "-t " + id + '-s">' + merke +
+      (nr ? '<span class="modulrad-nr" aria-hidden="true">' + esc(nr) + "</span>" : "") +
+      '<span class="modulrad-tittel" id="' + id + '-t">' + (nr ? '<span class="sr">Case ' + esc(nr) + ": </span>" : "") + fmt(radTittel(m)) + "</span>" +
+      '<span class="modulrad-hoyre" aria-hidden="true">' + hoyre + "</span>" +
       '<span class="sr" id="' + id + '-s">. ' + esc(st.tekst) + (anbefalt ? ", anbefalt neste" : "") + ". " + esc(st.handling) + "</span>" +
       "</button></li>";
   }
@@ -1118,6 +1247,7 @@
     else if (h === "taepp") simulerTaepp();
     else if (h === "qrark") apneQrArk();
     else if (h === "meny") visMeny();
+    else if (h === "menyutforming") byttMenyutforming(el.getAttribute("data-verdi"));
   });
 
   document.addEventListener("change", function (e) {
@@ -1241,6 +1371,7 @@
   dev = sok.get("dev") === "1" || (sok.get("dev") !== "0" && lagretDev === "1");
   try { devLukket = sessionStorage.getItem("nk-dev-lukket") !== "0"; } catch (e) { /* ignorer */ }
   if (sok.get("dev") === "0") { try { sessionStorage.setItem("nk-dev", "0"); } catch (e) { /* ignorer */ } }
+  try { if (localStorage.getItem("nk-menyutforming") === "liste") menyUtforming = "liste"; } catch (e) { /* ignorer */ }
 
   // Kurset åpner alltid i hovedmenyen, med «Fortsett» til der deltakeren slapp.
   // Adressen (#modul/steg) blir liggende ved omlasting, så den følges bare i utviklermodus.

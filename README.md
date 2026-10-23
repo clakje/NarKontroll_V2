@@ -140,6 +140,12 @@ Designet er laget med skillen `apple-design` (HIG som grunnlag, WCAG 2.1 AA som 
   («Start kurset», «Fortsett: …» eller «Neste: …»). Etter hver modul kommer deltakeren tilbake til hovedmenyen.
   Knappen «Hovedmeny» står alltid i toppfeltet, og på første steg i en modul. Rekkefølgen og gruppene står i
   `KURS.grupper` i `kurs.js`.
+- **To utforminger av hovedmenyen:** bryteren **Kort | Liste** ved siden av tittelen bytter mellom dem. Valget
+  huskes i nettleseren (`localStorage`, `nk-menyutforming`), og «Kort» er standard. «Kort» er menyen over.
+  «Liste» har del A–C som lister i hvert sitt kort (statusmerke, casenummer, tittel og «Fullført» eller
+  «x av y steg»), og anbefalt neste rad er fremhevet med «Fortsett» eller «Start». Fremdriften med knappen videre
+  står øverst til høyre, og del D står i en smal kolonne under den (`listeTekst` på gruppen). Listemenyen ruller
+  på lave skjermer. Under 1000 px står alt i én kolonne.
 - **Signaturelementet** er skannesonen: en rolig mintflate med QR-kodene, som kamerarammen i appen.
   Resten av siden er stille.
 - **Farger** fra logoen: teal `#186F7B` (5,8:1 på hvitt) og mint `#79E3E0` (flater og markering).

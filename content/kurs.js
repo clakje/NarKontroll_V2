@@ -11,6 +11,7 @@
  *   valgfri    true: teller ikke med for at kurset er fullført (del D)
  *
  * Grupper (KURS.grupper): del («A»–«D»), tittel, tekst, moduler, og valgfri: true på del D.
+ *   listeTekst (valgfritt) brukes i stedet for `tekst` når hovedmenyen vises som liste.
  * Kurset er fullført når alle moduler uten `valgfri` er fullført (R2-3).
  *
  * Stegtyper: registrer, skann, signer, sporsmal, obs, info
@@ -61,7 +62,7 @@ window.KURS = {
     { del: "A", tittel: "Kom i gang", tekst: "Gjør denne først. Her gjør du klar appen på mobilen.", moduler: ["m0-velkommen"] },
     { del: "B", tittel: "Caser", tekst: "Øv på situasjoner fra hverdagen. Casene bygger på hverandre, så ta dem gjerne i rekkefølge.", moduler: ["case-1", "case-2", "case-3", "case-4", "case-5", "case-6", "case-7", "case-8", "case-9", "tips"] },
     { del: "C", tittel: "Til slutt", tekst: "Gode råd og innlogging med din egen bruker.", moduler: ["m12-gode-rad", "m13-avslutning"] },
-    { del: "D", tittel: "Fordypning", tekst: "Anbefalt for alle.", valgfri: true, moduler: ["d-akuttvogn", "d-rette-opp-feil", "d-glemmekort", "d-kjekt-a-vite", "d-forbedring"] }
+    { del: "D", tittel: "Fordypning", tekst: "Anbefalt for alle.", listeTekst: "Valgfritt, men anbefalt for alle – gjerne når del A–C er fullført.", valgfri: true, moduler: ["d-akuttvogn", "d-rette-opp-feil", "d-glemmekort", "d-kjekt-a-vite", "d-forbedring"] }
   ],
 
   moduler: [

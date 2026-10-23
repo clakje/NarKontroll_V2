@@ -40,6 +40,12 @@
   --feil-myk: #FCE8E8;
   --obs: #8A5A00;
   --obs-myk: #FFF4D6;
+  /* Valget Kort / Liste: oransje, så det skiller seg fra resten av menyen. Hvit på #C2410C 5,2:1, #9A3412 på #FFEDD5 6,6:1 */
+  --oransje: #C2410C;
+  --oransje-tekst: #FFFFFF;
+  --oransje-dyp: #9A3412;
+  --oransje-myk: #FFEDD5;
+  --oransje-kant: #FDBA74;
   --avklares-bg: #FFF1A8;
   --avklares-tekst: #4D3D00;
   --fokus: #186F7B;
@@ -91,6 +97,11 @@
     --feil-myk: #3A1B1C;
     --obs: #F2C766;
     --obs-myk: #33290F;
+    --oransje: #FB923C;
+    --oransje-tekst: #1F0E04;
+    --oransje-dyp: #FDBA74;
+    --oransje-myk: #3A2210;
+    --oransje-kant: #7C3A12;
     --avklares-bg: #5A4A00;
     --avklares-tekst: #FFF1A8;
     --fokus: #79E3E0;
@@ -695,6 +706,23 @@ button.signatur:hover { background: var(--mint-myk); }
    R2-3: ingressen er fire korte linjer, så avsnittene står tett */
 .meny-hode { display: flex; flex-direction: column; gap: 6px; }
 .meny-tittel { font-size: 1.5rem; font-weight: 750; letter-spacing: -.015em; line-height: 1.25; outline: none; }
+
+/* Valget av utforming (Kort / Liste) ved siden av tittelen. Knappene er 44 px høye, men den negative
+   margen gjør at raden ikke blir høyere enn tittelen, så kortmenyen fortsatt får plass uten å rulle */
+.meny-tittelrad { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 56px; }
+.utformingsvalg {
+  display: inline-flex; gap: 2px; padding: 3px; margin-block: -7px;
+  background: var(--oransje-myk); border: 1px solid var(--oransje-kant); border-radius: 999px;
+}
+.utformingsvalg-knapp {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px 0 11px;
+  border: 0; border-radius: 999px; background: transparent; color: var(--oransje-dyp);
+  font-size: .875rem; font-weight: 600; cursor: pointer;
+  transition: background-color .15s, color .15s;
+}
+.utformingsvalg-knapp .ikon { width: 17px; height: 17px; }
+.utformingsvalg-knapp:hover { background: color-mix(in srgb, var(--oransje) 14%, transparent); }
+.utformingsvalg-knapp[aria-pressed="true"] { background: var(--oransje); color: var(--oransje-tekst); box-shadow: 0 1px 2px rgba(15, 43, 47, .18); }
 .meny-ingress { display: grid; gap: 0; font-size: .9375rem; line-height: 1.45; color: var(--blekk-2); }
 .meny-ingress p { text-wrap: pretty; }
 
@@ -944,6 +972,111 @@ body:has(.intro[open]) { overflow: hidden; }
   .meny-ingress p + p::before { content: " "; }
 }
 
+/* ───────────── Hovedmenyen som liste ───────────── */
+
+/* Alternativ utforming: tittelen og fremdriften øverst, del A–C som lister i kort til venstre og
+   del D i en smal kolonne til høyre. Står etter reglene for lav skjerm, så de ikke strammer inn listen */
+.meny--liste { display: grid; grid-template-columns: minmax(0, 1fr) 300px; align-items: start; gap: 24px 28px; }
+/* To spalter som stables hver for seg, så del A–C starter rett under ingressen */
+.meny-spalte { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.meny--liste .meny-hode { gap: 12px; padding-top: 6px; }
+.meny--liste .meny-tittel { font-size: clamp(1.75rem, 2.6vw, 2.25rem); letter-spacing: -.02em; line-height: 1.15; }
+.meny--liste .meny-ingress { line-height: 1.55; }
+.meny-kolonne { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+/* Fremdriften: status og tall, en linje og knappen videre */
+.fremdrift-kort {
+  display: flex; flex-direction: column; gap: 12px; padding: 18px 20px;
+  background: var(--flate); border: 1px solid var(--linje); border-radius: var(--r-l); box-shadow: var(--skygge);
+}
+.fremdrift-kort[data-nylig], .fremdrift-kort[data-alle] { border-color: color-mix(in srgb, var(--ok) 45%, var(--linje)); background: var(--ok-myk); }
+.fremdrift-kort-topp { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+.fremdrift-kort h2 { display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 700; line-height: 1.3; outline: none; }
+.fremdrift-kort h2 .ikon { color: var(--ok); width: 20px; height: 20px; stroke-width: 2.4; }
+.fremdrift-kort-tall { font-size: .8125rem; color: var(--blekk-2); }
+.fremdrift-kort-tall strong { color: var(--blekk); font-variant-numeric: tabular-nums; }
+.fremdrift-linje { height: 8px; border-radius: 4px; background: var(--linje); overflow: hidden; }
+.fremdrift-linje span { display: block; height: 100%; border-radius: inherit; background: var(--spor-ferdig); }
+.fremdrift-kort-knapp {
+  justify-content: space-between; gap: 14px; min-height: 64px; padding: 10px 16px 10px 18px;
+  border-radius: var(--r-m); white-space: normal; text-align: left;
+}
+.fremdrift-kort-knapp > span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fremdrift-kort-verb { font-size: .8125rem; font-weight: 500; }
+.fremdrift-kort-modul { font-size: 1.0625rem; font-weight: 700; line-height: 1.3; }
+.fremdrift-kort .fremdrift-lagring { align-items: flex-start; font-size: .8125rem; line-height: 1.4; color: var(--blekk-2); }
+.fremdrift-kort .status-prikk { flex: none; margin-top: .4em; }
+
+/* Gruppene: bokstav, tittel og «x av y fullført» øverst, ingressen under tittelen */
+.listegruppe {
+  padding: 20px 22px 14px; background: var(--flate);
+  border: 1px solid var(--linje); border-radius: var(--r-l); box-shadow: 0 1px 2px rgba(15, 43, 47, .05);
+}
+.listegruppe-hode { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 2px 16px; margin-bottom: 12px; }
+.listegruppe .gruppe-nr { grid-column: 1; grid-row: 1; width: 36px; height: 36px; font-size: .9375rem; }
+.listegruppe-tittel { grid-column: 2; grid-row: 1; font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
+.listegruppe .gruppe-teller { grid-column: 3; grid-row: 1; margin-left: 0; }
+.listegruppe-ingress { grid-column: 2 / -1; font-size: .9375rem; line-height: 1.45; color: var(--blekk-2); text-wrap: pretty; }
+
+/* Radene: hele raden er én knapp. Statusmerke, nummer (casene), tittel og status til høyre */
+.modulliste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.modulrad {
+  width: 100%; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 14px;
+  min-height: 52px; padding: 6px 14px; text-align: left; cursor: pointer;
+  background: transparent; border: 2px solid transparent; border-radius: var(--r-m);
+  font-size: 1rem; line-height: 1.35; color: var(--blekk);
+  transition: background-color .15s, border-color .15s;
+}
+.modulliste[data-nummerert] .modulrad { grid-template-columns: 28px 18px minmax(0, 1fr) auto; }
+.modulrad:hover { background: var(--sone); }
+.modulrad:focus-visible { outline-offset: 1px; border-radius: var(--r-m); }
+.modulrad[data-anbefalt] { background: var(--sone); border-color: var(--aksent); font-weight: 650; }
+.modulrad-nr { font-size: .875rem; color: var(--blekk-2); font-variant-numeric: tabular-nums; }
+.modulliste[data-nummerert] .modulrad:not(:has(.modulrad-nr)) .modulrad-tittel { grid-column: 2 / 4; }
+.modulrad-tittel { min-width: 0; }
+.modulrad-hoyre { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px 14px; font-size: .8125rem; font-weight: 500; color: var(--blekk-2); white-space: nowrap; }
+.modulrad-status[data-status="ferdig"] { color: var(--ferdig); font-weight: 650; }
+.modulrad-pille {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 0 15px; border-radius: 999px;
+  background: var(--aksent); color: var(--aksent-tekst); font-size: .875rem; font-weight: 700;
+}
+.modulrad-pil { width: 18px; height: 18px; color: var(--blekk-2); }
+
+/* Statusmerket: tom ring, ring som fylles (påbegynt) eller grønn sirkel med hake (fullført) */
+.modulrad-merke { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 999px; box-shadow: inset 0 0 0 2px var(--linje-sterk); }
+.modulrad-merke[data-status="ferdig"] { background: var(--ferdig); box-shadow: none; color: var(--ferdig-hake); }
+.modulrad-merke[data-status="ferdig"] .ikon { width: 16px; height: 16px; stroke-width: 3.2; }
+.modulrad-merke[data-status="pabegynt"] {
+  box-shadow: none;
+  background: conic-gradient(var(--aksent) var(--p, 30%), var(--linje-sterk) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+}
+
+/* Del D: hul bokstav, ingen teller og ingen statusmerker. Radene skilles med streker */
+.listegruppe[data-valgfri] { padding: 18px 18px 8px; }
+.listegruppe[data-valgfri] .gruppe-nr { background: var(--flate); color: var(--aksent); box-shadow: inset 0 0 0 2px var(--aksent); width: 32px; height: 32px; font-size: .875rem; }
+.listegruppe[data-valgfri] .listegruppe-hode { grid-template-columns: 32px minmax(0, 1fr); gap: 4px 14px; align-items: start; margin-bottom: 0; padding-bottom: 12px; border-bottom: 1px solid var(--linje); }
+.listegruppe[data-valgfri] .listegruppe-tittel { align-self: center; }
+.listegruppe[data-valgfri] .listegruppe-ingress { font-size: .875rem; }
+.listegruppe[data-valgfri] .modulliste { gap: 0; }
+.listegruppe[data-valgfri] .modulliste li + li { border-top: 1px solid var(--linje); }
+.listegruppe[data-valgfri] .modulrad { grid-template-columns: minmax(0, 1fr) auto; min-height: 48px; padding: 4px 8px; border-radius: var(--r-s); }
+
+@media (max-width: 999px) {
+  .meny--liste { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  /* Én kolonne: tittel, fremdrift, del A–C og del D i den rekkefølgen */
+  .meny-spalte { display: contents; }
+  .meny--liste .meny-hode { order: 1; }
+  .meny--liste .fremdrift-kort { order: 2; }
+  .meny--liste .meny-kolonne { order: 3; }
+  .meny--liste .meny-kolonne--side { order: 4; }
+}
+@media (max-width: 520px) {
+  .listegruppe { padding: 16px 12px 10px; }
+  .modulrad { gap: 10px; padding: 6px 8px; }
+}
+
 /* ───────────── Tilpasning til bredde ───────────── */
 
 @media (max-width: 1080px) {
@@ -981,6 +1114,14 @@ body:has(.intro[open]) { overflow: hidden; }
   .modulkort { border: 2px solid ButtonText; }
   /* R2-4: den grønne flaten forsvinner i høykontrast, men haken skal fortsatt synes */
   .modulkort-status[data-status="ferdig"] .ikon { forced-color-adjust: none; background: CanvasText; color: Canvas; }
+  .utformingsvalg-knapp[aria-pressed="true"] { outline: 2px solid Highlight; }
+  .fremdrift-linje { border: 1px solid CanvasText; }
+  .fremdrift-linje span { background: Highlight; }
+  .modulrad[data-anbefalt] { border-color: Highlight; }
+  .modulrad-merke { border: 2px solid CanvasText; }
+  .modulrad-merke[data-status="ferdig"] { forced-color-adjust: none; background: CanvasText; color: Canvas; }
+  .modulrad-merke[data-status="pabegynt"] { -webkit-mask: none; mask: none; background: none; border-style: dashed; }
+  .modulrad-pille { border: 1px solid ButtonText; }
   .sokeramme::before { border: 3px solid CanvasText; background: none; }
 }
 
